@@ -63,45 +63,31 @@ export default function UploadPanel({
       </button>
 
       {showTheme && (<>
-        <div style={{ padding: '0 16px 14px', display: 'flex', gap: 8 }}>
-          <button onClick={() => onThemeChange('light')} style={{ ...s.themeOption, fontFamily: MONO,
-            background: !isDark ? textPrimary : btnBg,
-            color: !isDark ? '#fff' : textSecondary,
-            border: `1px solid ${!isDark ? textPrimary : dividerColor}`,
-          }}>
-            <i className="ri-sun-line" style={{ marginRight: 6 }} />LIGHT
-          </button>
-          <button onClick={() => onThemeChange('dark')} style={{ ...s.themeOption, fontFamily: MONO,
-            background: isDark ? textPrimary : btnBg,
-            color: isDark ? '#191812' : textSecondary,
-            border: `1px solid ${isDark ? textPrimary : dividerColor}`,
-          }}>
-            <i className="ri-moon-line" style={{ marginRight: 6 }} />DARK
-          </button>
+        <div style={s.toggleRow} onClick={() => onThemeChange(isDark ? 'light' : 'dark')}
+          role="button" tabIndex={0}
+          onKeyDown={e => e.key === 'Enter' && onThemeChange(isDark ? 'light' : 'dark')}
+        >
+          <div style={s.mainText}>
+            <span style={{ ...s.mainLabel, fontFamily: HEADLINE, color: textPrimary }}>Dark Mode</span>
+            <span style={{ ...s.mainSub, fontFamily: MONO, color: textSecondary }}>{isDark ? 'ON' : 'OFF'}</span>
+          </div>
+          <div style={{ ...s.toggleTrack, background: isDark ? textPrimary : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)') }}>
+            <div style={{ ...s.toggleThumb, transform: isDark ? 'translateX(18px)' : 'translateX(2px)', background: isDark ? (isDark ? '#191812' : '#fff') : textSecondary }} />
+          </div>
         </div>
 
         <div style={{ ...s.dividerH, background: dividerColor }} />
 
-        <div style={s.mainBtn} onClick={() => onCornersChange(corners === 'rounded' ? 'sharp' : 'rounded')}
+        <div style={s.toggleRow} onClick={() => onCornersChange(corners === 'rounded' ? 'sharp' : 'rounded')}
           role="button" tabIndex={0}
           onKeyDown={e => e.key === 'Enter' && onCornersChange(corners === 'rounded' ? 'sharp' : 'rounded')}
         >
-          <div style={{ ...s.iconWrap, background: iconBg, color: iconColor }}>
-            <i className="ri-checkbox-blank-line" style={{ fontSize: 22 }} />
-          </div>
           <div style={s.mainText}>
             <span style={{ ...s.mainLabel, fontFamily: HEADLINE, color: textPrimary }}>Rounded Corners</span>
-            <span style={{ ...s.mainSub, fontFamily: MONO, color: textSecondary }}>{corners === 'rounded' ? 'SLIGHTLY ROUNDED' : 'FULLY SQUARE'}</span>
+            <span style={{ ...s.mainSub, fontFamily: MONO, color: textSecondary }}>{corners === 'rounded' ? 'ON' : 'OFF'}</span>
           </div>
-          <div style={{
-            ...s.toggleTrack,
-            background: corners === 'rounded' ? textPrimary : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'),
-          }}>
-            <div style={{
-              ...s.toggleThumb,
-              transform: corners === 'rounded' ? 'translateX(18px)' : 'translateX(2px)',
-              background: corners === 'rounded' ? (isDark ? '#191812' : '#fff') : textSecondary,
-            }} />
+          <div style={{ ...s.toggleTrack, background: corners === 'rounded' ? textPrimary : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)') }}>
+            <div style={{ ...s.toggleThumb, transform: corners === 'rounded' ? 'translateX(18px)' : 'translateX(2px)', background: corners === 'rounded' ? (isDark ? '#191812' : '#fff') : textSecondary }} />
           </div>
         </div>
       </>)}
@@ -279,7 +265,7 @@ const s = {
   pillDivider: { width: 1, height: 14, margin: '0 2px' },
   pillIconBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px 6px', borderRadius: 8 },
   editBtn:     { display: 'flex', alignItems: 'center', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 10, padding: '4px 8px', borderRadius: 8, letterSpacing: '0.08em', fontWeight: 500 },
-  themeOption:  { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px', borderRadius: 10, cursor: 'pointer', fontSize: 10, letterSpacing: '0.08em', fontWeight: 500 },
-  toggleTrack:  { width: 40, height: 24, borderRadius: 9, flexShrink: 0, position: 'relative', cursor: 'pointer', transition: 'background 0.2s' },
+  toggleRow:    { display: 'flex', alignItems: 'center', gap: 14, width: '100%', padding: '16px 20px', cursor: 'pointer' },
+  toggleTrack:  { width: 40, height: 24, borderRadius: 9, flexShrink: 0, position: 'relative', transition: 'background 0.2s' },
   toggleThumb:  { position: 'absolute', top: 3, width: 18, height: 18, borderRadius: '50%', transition: 'transform 0.2s' },
 }
