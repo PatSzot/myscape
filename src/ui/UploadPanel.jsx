@@ -214,7 +214,7 @@ export default function UploadPanel({
                   <i className="ri-video-line" style={{ fontSize: 22 }} />
                 </div>
                 <div style={{ ...s.mainText }}>
-                  <span style={{ ...s.mainLabel, fontFamily: HEADLINE, color: textPrimary }}>Path 1</span>
+                  <span style={{ ...s.mainLabel, fontFamily: HEADLINE, color: textPrimary }}>Video Loop 1</span>
                   <span style={{ ...s.mainSub, fontFamily: MONO, color: textSecondary }}>
                     {isRecording
                       ? `RECORDING  ${Math.round(recordProgress * 100)}%`

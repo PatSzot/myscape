@@ -4,13 +4,14 @@ const DURATION = 15  // seconds
 const REC_W   = 1080
 const REC_H   = 1920
 
-// Camera offsets from each focus particle — varied angles for cinematic interest
+// Camera offsets from each focus particle — orbit at ~8 units from varied directions
+// Large XZ spread and sign changes ensure the camera rotates fully around the scene
 const OFFSETS = [
-  new THREE.Vector3(-2.0,  1.5,  6.0),
-  new THREE.Vector3( 2.5, -1.0,  5.0),
-  new THREE.Vector3(-1.5,  2.5,  7.0),
-  new THREE.Vector3( 3.0,  0.5,  5.5),
-  new THREE.Vector3( 0.0, -2.0,  6.5),
+  new THREE.Vector3(-5.5,  2.5,  5.5),  // front-left, high
+  new THREE.Vector3( 7.5,  0.0,  2.0),  // right side
+  new THREE.Vector3( 1.0,  5.0, -4.5),  // top-behind
+  new THREE.Vector3( 5.0, -3.0,  5.0),  // front-right, low
+  new THREE.Vector3(-6.5,  1.0, -3.5),  // left-behind
 ]
 
 export async function recordPath1(renderer, scene, particles, bgColor, onProgress) {
