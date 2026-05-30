@@ -186,6 +186,14 @@ export default function UploadPanel({
                 </button>
 
                 <div style={{ ...s.dividerH, background: dividerColor }} />
+              </>
+            )}
+
+            {themeSection}
+
+            {count === 0 && (
+              <>
+                <div style={{ ...s.dividerH, background: dividerColor }} />
 
                 <button style={s.mainBtn}>
                   <div style={{ ...s.iconWrap, background: iconBg, color: iconColor }}>
@@ -197,12 +205,8 @@ export default function UploadPanel({
                   </div>
                   <i className="ri-arrow-right-s-line" style={{ ...s.chevron, color: textMuted }} />
                 </button>
-
-                <div style={{ ...s.dividerH, background: dividerColor }} />
               </>
             )}
-
-            {themeSection}
           </div>
         )}
 
