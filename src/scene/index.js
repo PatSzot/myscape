@@ -37,7 +37,7 @@ const FRAG = /* glsl */`
 // ─── Asset order ──────────────────────────────────────────────────────────────
 
 const LETTERS = ['/M.svg', '/Y.svg', '/S.svg', '/C.svg', '/A.svg', '/P.svg', '/E.svg']
-const PARTICLE_COUNT = 70   // 7 × 10
+const PARTICLE_COUNT = 7
 
 // ─── SVG loader ───────────────────────────────────────────────────────────────
 
