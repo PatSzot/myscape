@@ -3,7 +3,7 @@ import 'remixicon/fonts/remixicon.css'
 
 const MAX_PER_PICK = 100
 const MONO     = '"IBM Plex Mono", monospace'
-const HEADLINE = '"IBM Plex Sans", sans-serif'
+const HEADLINE = '"Zalando Sans SemiExpanded", sans-serif'
 
 export default function UploadPanel({
   onLoad, onDelete, images, progress,
@@ -136,7 +136,7 @@ export default function UploadPanel({
             {/* Controls accordion header */}
             <button style={s.mainBtn} onClick={() => setShowTheme(v => !v)}>
               <div style={s.mainText}>
-                <span style={{ ...s.mainLabel, fontFamily: HEADLINE, color: textPrimary }}>Create My Scape</span>
+                <span style={{ ...s.mainLabel, fontFamily: HEADLINE, color: textPrimary }}>Create</span>
               </div>
               <i className={showTheme ? 'ri-close-line' : 'ri-add-line'} style={{ ...s.chevron, fontSize: 26, color: textMuted }} />
             </button>
