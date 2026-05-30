@@ -43,7 +43,8 @@ export default function App() {
   const [theme,          setTheme]          = useState('light')
   const [corners,        setCorners]        = useState('rounded')
   const [recording,      setRecording]      = useState(false)
-  const [recordProgress, setRecordProgress] = useState(0)   // 'rounded' | 'sharp'
+  const [recordProgress, setRecordProgress] = useState(0)
+  const [recordedVideo,  setRecordedVideo]  = useState(null) // { blob, ext } when ready to save
 
   useEffect(() => {
     let mounted = true
@@ -92,21 +93,45 @@ export default function App() {
     if (!sceneRef.current || recording) return
     setRecording(true)
     setRecordProgress(0)
+    setRecordedVideo(null)
     try {
       const bgColor = theme === 'dark' ? 0x191812 : 0xF5F3EC
-      const { blob, ext } = await sceneRef.current.startRecording(bgColor, p => setRecordProgress(p))
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `myscape-path1.${ext}`
-      a.click()
-      URL.revokeObjectURL(url)
+      const result = await sceneRef.current.startRecording(bgColor, p => setRecordProgress(p))
+      setRecordedVideo(result)  // hold blob — let user gesture trigger the save
     } catch (err) {
       console.error('Recording failed:', err)
     } finally {
       setRecording(false)
       setRecordProgress(0)
     }
+  }
+
+  async function handleSaveVideo() {
+    if (!recordedVideo) return
+    const { blob, ext } = recordedVideo
+    const filename = `myscape-videoloop1.${ext}`
+    const file = new File([blob], filename, { type: blob.type })
+
+    // On iOS / Android: Web Share API → user picks "Save Video" / Camera Roll
+    if (navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: 'Myscape' })
+        setRecordedVideo(null)
+        return
+      } catch (e) {
+        if (e.name === 'AbortError') return  // user cancelled — keep blob ready
+        // Share failed for another reason — fall through to download
+      }
+    }
+
+    // Desktop fallback: trigger a file download
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+    setRecordedVideo(null)
   }
 
   function handleCornersChange(v) {
@@ -140,6 +165,8 @@ export default function App() {
         onRecord={handleRecord}
         isRecording={recording}
         recordProgress={recordProgress}
+        recordedVideo={recordedVideo}
+        onSaveVideo={handleSaveVideo}
       />
     </>
   )

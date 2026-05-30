@@ -10,6 +10,7 @@ export default function UploadPanel({
   theme, onThemeChange,
   corners, onCornersChange,
   onRecord, isRecording, recordProgress,
+  recordedVideo, onSaveVideo,
 }) {
   const photoInputRef = useRef(null)
   const [isEditing,    setIsEditing]    = useState(false)
@@ -207,18 +208,20 @@ export default function UploadPanel({
               <div style={{ ...s.dividerH, background: dividerColor }} />
               <button
                 style={{ ...s.mainBtn, opacity: isRecording ? 0.6 : 1 }}
-                onClick={isRecording ? undefined : onRecord}
+                onClick={isRecording ? undefined : recordedVideo ? onSaveVideo : onRecord}
                 disabled={isRecording}
               >
-                <div style={{ ...s.iconWrap, background: iconBg, color: iconColor }}>
-                  <i className="ri-video-line" style={{ fontSize: 22 }} />
+                <div style={{ ...s.iconWrap, background: recordedVideo ? textPrimary : iconBg, color: recordedVideo ? (isDark ? '#191812' : '#fff') : iconColor }}>
+                  <i className={recordedVideo ? 'ri-download-2-line' : 'ri-video-line'} style={{ fontSize: 22 }} />
                 </div>
                 <div style={{ ...s.mainText }}>
                   <span style={{ ...s.mainLabel, fontFamily: HEADLINE, color: textPrimary }}>Video Loop 1</span>
-                  <span style={{ ...s.mainSub, fontFamily: MONO, color: textSecondary }}>
+                  <span style={{ ...s.mainSub, fontFamily: MONO, color: recordedVideo ? textPrimary : textSecondary }}>
                     {isRecording
                       ? `RECORDING  ${Math.round(recordProgress * 100)}%`
-                      : '1080 × 1920  ·  15 SECS'}
+                      : recordedVideo
+                        ? 'READY — TAP TO SAVE'
+                        : '1080 × 1920  ·  15 SECS'}
                   </span>
                   {isRecording && (
                     <div style={{ height: 3, borderRadius: 2, marginTop: 6, overflow: 'hidden', background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }}>
