@@ -48,8 +48,8 @@ export default function UploadPanel({
   const textMuted     = isDark ? '#555'    : '#ccc'
   const dividerColor  = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'
   const btnBg         = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'
-  const iconBg        = isDark ? '#f0ede4' : '#000'
-  const iconColor     = isDark ? '#191812' : '#fff'
+  const iconBg        = 'rgba(0,0,0,0.10)'
+  const iconColor     = '#000'
 
   const trackOff = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'
 
@@ -134,7 +134,7 @@ export default function UploadPanel({
                 <i className="ri-settings-3-line" style={{ fontSize: 22 }} />
               </div>
               <div style={s.mainText}>
-                <span style={{ ...s.mainLabel, fontFamily: HEADLINE, color: textPrimary }}>Controls</span>
+                <span style={{ ...s.mainLabel, fontFamily: HEADLINE, color: textPrimary }}>Customize</span>
                 <span style={{ ...s.mainSub, fontFamily: MONO, color: textSecondary }}>{isDark ? 'DARK' : 'LIGHT'} THEME · {corners === 'rounded' ? 'ROUNDED' : 'SQUARE'} CORNERS</span>
               </div>
               <i className={showTheme ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'} style={{ ...s.chevron, color: textMuted }} />
