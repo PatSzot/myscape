@@ -38,7 +38,8 @@ async function readMeta(file) {
 function compressImageToDataUrl(url) {
   return new Promise((resolve, reject) => {
     const img = new Image()
-    img.crossOrigin = 'anonymous'
+    // Do NOT set crossOrigin for blob URLs — they are same-origin and don't support
+    // CORS mode; setting it causes silent load failures on iOS Safari.
     img.onload = () => {
       const MAX = 1024
       const scale = Math.min(1, MAX / Math.max(img.naturalWidth, img.naturalHeight, 1))
@@ -222,7 +223,7 @@ export default function App() {
     }
 
     const { id } = await res.json()
-    await navigator.clipboard.writeText(`${window.location.origin}/?view&s=${id}`)
+    return `${window.location.origin}/?view&s=${id}`
   }
 
   function handleCornersChange(v) {

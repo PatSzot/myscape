@@ -20,6 +20,7 @@ export default function UploadPanel({
   const [showAnimate,  setShowAnimate]  = useState(false)
   const [copied,       setCopied]       = useState(false)
   const [copying,      setCopying]      = useState(false)
+  const [shareUrl,     setShareUrl]     = useState(null)
   const count     = images.length
   const isLoading = progress !== null
   const isDark    = theme === 'dark'
@@ -231,12 +232,21 @@ export default function UploadPanel({
                 <button style={{ ...s.mainBtn, opacity: copying ? 0.6 : 1 }} onClick={async () => {
                   if (copying || copied) return
                   setCopying(true)
+                  setShareUrl(null)
                   try {
-                    await onCopyLink()
-                    setCopied(true)
-                    setTimeout(() => setCopied(false), 3000)
+                    const url = await onCopyLink()
+                    // Try auto-copy; on iOS the user gesture may have expired after
+                    // the async upload, so fall back to showing the URL.
+                    try {
+                      await navigator.clipboard.writeText(url)
+                      setCopied(true)
+                      setTimeout(() => setCopied(false), 3000)
+                    } catch {
+                      setShareUrl(url)
+                    }
                   } catch (err) {
                     console.error('Copy link failed:', err)
+                    alert('Failed to generate share link. Please try again.')
                   } finally {
                     setCopying(false)
                   }
@@ -252,6 +262,39 @@ export default function UploadPanel({
                   </div>
                   {!copying && <i className="ri-arrow-right-s-line" style={{ ...s.chevron, color: textMuted }} />}
                 </button>
+
+                {/* Fallback share URL (shown when clipboard auto-copy fails, e.g. iOS) */}
+                {shareUrl && (
+                  <>
+                    <div style={{ ...s.dividerH, background: dividerColor }} />
+                    <div style={{ padding: '12px 20px 14px' }}>
+                      <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.08em', color: textSecondary, marginBottom: 8 }}>
+                        TAP TO SELECT & COPY
+                      </div>
+                      <input
+                        readOnly
+                        value={shareUrl}
+                        onFocus={e => e.target.select()}
+                        onClick={e => {
+                          e.target.select()
+                          navigator.clipboard?.writeText(shareUrl).catch(() => {})
+                        }}
+                        style={{
+                          display: 'block', width: '100%', boxSizing: 'border-box',
+                          background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+                          border: `1px solid ${dividerColor}`,
+                          borderRadius: 8,
+                          color: textPrimary,
+                          fontFamily: MONO, fontSize: 11,
+                          letterSpacing: '0.02em',
+                          padding: '8px 10px',
+                          outline: 'none',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}
+                      />
+                    </div>
+                  </>
+                )}
 
                 <div style={{ ...s.dividerH, background: dividerColor }} />
                 <button
