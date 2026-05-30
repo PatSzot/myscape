@@ -4,10 +4,10 @@ import UploadPanel from './ui/UploadPanel.jsx'
 
 export default function App() {
   const containerRef = useRef(null)
-  const sceneRef = useRef(null)
-  const allUrlsRef = useRef([])        // accumulated blob URLs across all selections
-  const [count, setCount] = useState(0)
-  const [progress, setProgress] = useState(null) // null | { done, total }
+  const sceneRef     = useRef(null)
+  const urlPoolRef   = useRef([])          // source of truth for scene calls
+  const [allUrls, setAllUrls]   = useState([])
+  const [progress, setProgress] = useState(null)
 
   useEffect(() => {
     const scene = initScene(containerRef.current)
@@ -15,25 +15,41 @@ export default function App() {
     return scene.cleanup
   }, [])
 
-  function handleLoad(newUrls) {
-    // Append new photos to existing selection
-    allUrlsRef.current = [...allUrlsRef.current, ...newUrls]
-    const allUrls = allUrlsRef.current
-    setCount(allUrls.length)
-    setProgress({ done: 0, total: 100 })
+  function applyUrls(next, showProgress = true) {
+    urlPoolRef.current = next
+    setAllUrls([...next])
 
-    sceneRef.current.updateTextures(allUrls, (done, total) => {
-      setProgress({ done, total })
-      if (done === total) {
-        setTimeout(() => setProgress(null), 800)
-      }
-    })
+    if (showProgress) {
+      setProgress({ done: 0, total: 100 })
+      sceneRef.current.updateTextures(next, (done, total) => {
+        setProgress({ done, total })
+        if (done === total) setTimeout(() => setProgress(null), 800)
+      })
+    } else {
+      // Silent update (deletions) — no progress bar
+      sceneRef.current.updateTextures(next)
+    }
+  }
+
+  function handleLoad(newUrls) {
+    applyUrls([...urlPoolRef.current, ...newUrls], true)
+  }
+
+  function handleDelete(url) {
+    const next = urlPoolRef.current.filter(u => u !== url)
+    URL.revokeObjectURL(url)
+    applyUrls(next, false)
   }
 
   return (
     <>
       <div ref={containerRef} style={{ width: '100vw', height: '100vh', overflow: 'hidden' }} />
-      <UploadPanel onLoad={handleLoad} count={count} progress={progress} />
+      <UploadPanel
+        onLoad={handleLoad}
+        onDelete={handleDelete}
+        allUrls={allUrls}
+        progress={progress}
+      />
     </>
   )
 }
