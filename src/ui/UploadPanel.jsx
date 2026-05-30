@@ -1,30 +1,39 @@
 import { useRef, useState, useEffect } from 'react'
 import 'remixicon/fonts/remixicon.css'
+import MusicPill from './MusicPill.jsx'
 
 const MAX_PER_PICK = 100
-
 const MONO     = '"IBM Plex Mono", monospace'
 const HEADLINE = '"IBM Plex Sans", sans-serif'
 
-export default function UploadPanel({ onLoad, onDelete, images, progress }) {
-  const inputRef  = useRef(null)
+export default function UploadPanel({
+  onLoad, onDelete, images, progress,
+  onLoadMusic, song, onRemoveMusic,
+}) {
+  const photoInputRef = useRef(null)
+  const musicInputRef = useRef(null)
   const [isEditing, setIsEditing] = useState(false)
   const count     = images.length
   const isLoading = progress !== null
 
   useEffect(() => { if (count === 0) setIsEditing(false) }, [count])
 
-  function openPicker() {
-    if (isLoading) return
-    inputRef.current?.click()
-  }
+  function openPhotoPicker() { if (!isLoading) photoInputRef.current?.click() }
+  function openMusicPicker() { musicInputRef.current?.click() }
 
-  function handleChange(e) {
+  function handlePhotoChange(e) {
     const files = Array.from(e.target.files ?? [])
       .filter(f => f.type.startsWith('image/'))
       .slice(0, MAX_PER_PICK)
     if (!files.length) return
-    onLoad(files)   // pass File objects — EXIF read in App
+    onLoad(files)
+    e.target.value = ''
+  }
+
+  function handleMusicChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    onLoadMusic(file)
     e.target.value = ''
   }
 
@@ -32,30 +41,25 @@ export default function UploadPanel({ onLoad, onDelete, images, progress }) {
 
   return (
     <>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        multiple
-        onChange={handleChange}
-        style={{ position: 'fixed', top: '-200px', left: '-200px', opacity: 0, width: '1px', height: '1px', pointerEvents: 'none' }}
-      />
+      {/* ── Hidden inputs ─────────────────────────────────────────── */}
+      <input ref={photoInputRef} type="file" accept="image/*" multiple onChange={handlePhotoChange}
+        style={HIDDEN} />
+      <input ref={musicInputRef} type="file" accept="audio/*" onChange={handleMusicChange}
+        style={HIDDEN} />
 
       <div style={s.root}>
 
-        {/* ── Edit panel ───────────────────────────────────────────── */}
+        {/* ── Edit panel ─────────────────────────────────────────── */}
         {isEditing && !isLoading && count > 0 && (
           <div style={s.editCard}>
-            <button style={s.addMoreRow} onClick={openPicker}>
+            <button style={s.addMoreRow} onClick={openPhotoPicker}>
               <div style={s.addMoreIcon}>
                 <i className="ri-add-line" style={{ fontSize: 17 }} />
               </div>
               <span style={s.addMoreLabel}>Add more photos</span>
               <i className="ri-arrow-right-s-line" style={{ fontSize: 18, color: '#ccc' }} />
             </button>
-
             <div style={s.listDivider} />
-
             <div style={s.list}>
               {images.map(({ url, meta }, i) => (
                 <div key={url} style={s.listItem}>
@@ -70,11 +74,7 @@ export default function UploadPanel({ onLoad, onDelete, images, progress }) {
                       </span>
                     )}
                   </div>
-                  <button
-                    style={s.deleteBtn}
-                    onClick={() => onDelete(url)}
-                    aria-label={`Delete photo ${i + 1}`}
-                  >
+                  <button style={s.deleteBtn} onClick={() => onDelete(url)}>
                     <i className="ri-close-line" style={{ fontSize: 15 }} />
                   </button>
                 </div>
@@ -83,15 +83,16 @@ export default function UploadPanel({ onLoad, onDelete, images, progress }) {
           </div>
         )}
 
-        {/* ── Loading progress ─────────────────────────────────────── */}
+        {/* ── Music pill ─────────────────────────────────────────── */}
+        {song && <MusicPill {...song} onRemove={onRemoveMusic} />}
+
+        {/* ── Loading progress ───────────────────────────────────── */}
         {isLoading && (
           <div style={s.card}>
             <div style={s.progressHeader}>
               <i className="ri-image-2-line" style={{ fontSize: 15, color: '#aaa' }} />
               <span style={{ ...s.progressLabel, fontFamily: MONO }}>LOADING TEXTURES</span>
-              <span style={{ ...s.progressCount, fontFamily: MONO }}>
-                {progress.done} / {progress.total}
-              </span>
+              <span style={{ ...s.progressCount, fontFamily: MONO }}>{progress.done} / {progress.total}</span>
             </div>
             <div style={s.progressTrack}>
               <div style={{ ...s.progressFill, width: `${pct}%` }} />
@@ -99,28 +100,37 @@ export default function UploadPanel({ onLoad, onDelete, images, progress }) {
           </div>
         )}
 
-        {/* ── Loaded pill ──────────────────────────────────────────── */}
+        {/* ── Loaded pill ────────────────────────────────────────── */}
         {!isLoading && count > 0 && (
           <div style={s.pill}>
             <i className="ri-image-2-line" style={{ fontSize: 14, color: '#bbb' }} />
-            <span style={{ ...s.pillCount, fontFamily: MONO }}>{count}</span>
-            <span style={{ ...s.pillLabel, fontFamily: MONO }}>
-              {count === 1 ? 'PHOTO' : 'PHOTOS'}
-            </span>
+            <span style={{ ...s.pillCount, fontFamily: HEADLINE }}>{count}</span>
+            <span style={{ ...s.pillLabel, fontFamily: MONO }}>{count === 1 ? 'PHOTO' : 'PHOTOS'}</span>
+
+            {!song && (
+              <>
+                <div style={s.pillDivider} />
+                <button style={s.pillIconBtn} onClick={openMusicPicker} title="Add music">
+                  <i className="ri-music-2-line" style={{ fontSize: 14 }} />
+                </button>
+              </>
+            )}
+
             <div style={s.pillDivider} />
             <button style={{ ...s.editBtn, fontFamily: MONO }} onClick={() => setIsEditing(v => !v)}>
               {isEditing
                 ? <><i className="ri-check-line" style={{ marginRight: 4 }} />DONE</>
-                : <><i className="ri-edit-line" style={{ marginRight: 4 }} />EDIT</>
+                : <><i className="ri-edit-line"  style={{ marginRight: 4 }} />EDIT</>
               }
             </button>
           </div>
         )}
 
-        {/* ── Initial CTA ──────────────────────────────────────────── */}
+        {/* ── Initial card ───────────────────────────────────────── */}
         {!isLoading && count === 0 && (
           <div style={s.card}>
-            <button style={s.mainBtn} onClick={openPicker}>
+
+            <button style={s.mainBtn} onClick={openPhotoPicker}>
               <div style={s.iconWrap}>
                 <i className="ri-image-2-line" style={{ fontSize: 22 }} />
               </div>
@@ -130,11 +140,27 @@ export default function UploadPanel({ onLoad, onDelete, images, progress }) {
               </div>
               <i className="ri-arrow-right-s-line" style={s.chevron} />
             </button>
+
             <div style={s.dividerH} />
-            <button style={{ ...s.autoBtn, fontFamily: MONO }} onClick={openPicker}>
+
+            <button style={{ ...s.secondaryRow, fontFamily: MONO }} onClick={openPhotoPicker}>
               <i className="ri-flashlight-line" style={{ marginRight: 8, fontSize: 14 }} />
               AUTO-FILL — SELECT ALL &amp; WE'LL USE THE FIRST {MAX_PER_PICK}
             </button>
+
+            <div style={s.dividerH} />
+
+            <button style={s.mainBtn} onClick={openMusicPicker}>
+              <div style={{ ...s.iconWrap, background: song ? '#555' : '#1a1a1a' }}>
+                <i className="ri-music-2-line" style={{ fontSize: 22 }} />
+              </div>
+              <div style={s.mainText}>
+                <span style={s.mainLabel}>{song ? 'Change music' : 'Add music'}</span>
+                <span style={{ ...s.mainSub, fontFamily: MONO }}>PLAYS SLOWED + REVERB</span>
+              </div>
+              <i className="ri-arrow-right-s-line" style={s.chevron} />
+            </button>
+
           </div>
         )}
 
@@ -144,6 +170,11 @@ export default function UploadPanel({ onLoad, onDelete, images, progress }) {
 }
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
+
+const HIDDEN = {
+  position: 'fixed', top: '-200px', left: '-200px',
+  opacity: 0, width: '1px', height: '1px', pointerEvents: 'none',
+}
 
 const glass = {
   background: 'rgba(255,255,255,0.92)',
@@ -183,15 +214,17 @@ const s = {
   itemLocation: { fontSize: 10, color: '#aaa', letterSpacing: '0.05em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   deleteBtn: { width: 28, height: 28, borderRadius: 7, border: 'none', background: 'rgba(0,0,0,0.05)', color: '#999', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
 
-  // ── Progress card ──
+  // ── Card shell ──
   card: { ...glass, pointerEvents: 'auto', borderRadius: 20, overflow: 'hidden' },
+
+  // ── Progress ──
   progressHeader: { display: 'flex', alignItems: 'center', gap: 8, padding: '16px 20px 10px' },
   progressLabel: { flex: 1, fontSize: 11, fontWeight: 500, color: '#333', letterSpacing: '0.08em' },
   progressCount: { fontSize: 11, color: '#aaa', letterSpacing: '0.04em', fontVariantNumeric: 'tabular-nums' },
   progressTrack: { margin: '0 20px 16px', height: 3, borderRadius: 2, background: 'rgba(0,0,0,0.08)', overflow: 'hidden' },
   progressFill: { height: '100%', background: '#000', borderRadius: 2, transition: 'width 0.15s ease-out' },
 
-  // ── Initial card ──
+  // ── Initial card rows ──
   mainBtn: { display: 'flex', alignItems: 'center', gap: 14, width: '100%', padding: '18px 20px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' },
   iconWrap: { width: 42, height: 42, borderRadius: 12, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0 },
   mainText: { flex: 1, display: 'flex', flexDirection: 'column', gap: 3 },
@@ -199,12 +232,13 @@ const s = {
   mainSub: { fontSize: 10, color: '#aaa', letterSpacing: '0.08em' },
   chevron: { fontSize: 20, color: '#ccc', flexShrink: 0 },
   dividerH: { height: 1, background: 'rgba(0,0,0,0.06)', margin: '0 20px' },
-  autoBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', padding: '15px 20px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 10, color: '#999', letterSpacing: '0.07em' },
+  secondaryRow: { display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', padding: '14px 20px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 10, color: '#999', letterSpacing: '0.07em' },
 
   // ── Loaded pill ──
   pill: { ...glass, pointerEvents: 'auto', display: 'flex', alignItems: 'center', gap: 8, borderRadius: 50, padding: '10px 12px 10px 14px', alignSelf: 'center' },
-  pillCount: { fontSize: 16, fontWeight: 500, color: '#000', letterSpacing: '-0.01em', fontFamily: HEADLINE },
+  pillCount: { fontSize: 16, fontWeight: 500, color: '#000', letterSpacing: '-0.01em' },
   pillLabel: { fontSize: 10, color: '#aaa', letterSpacing: '0.08em' },
   pillDivider: { width: 1, height: 14, background: 'rgba(0,0,0,0.1)', margin: '0 2px' },
+  pillIconBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', color: '#888', padding: '4px 6px', borderRadius: 8 },
   editBtn: { display: 'flex', alignItems: 'center', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 10, color: '#444', padding: '4px 8px', borderRadius: 8, letterSpacing: '0.08em', fontWeight: 500 },
 }

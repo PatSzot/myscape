@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import exifr from 'exifr'
 import { initScene } from './scene/index.js'
 import UploadPanel from './ui/UploadPanel.jsx'
+import { loadSong, unload } from './audio/engine.js'
 
 // ─── EXIF helpers ─────────────────────────────────────────────────────────────
 
@@ -40,6 +41,7 @@ export default function App() {
   const poolRef      = useRef([])            // { url, meta }[] — source of truth
   const [images,   setImages]   = useState([])
   const [progress, setProgress] = useState(null)
+  const [song,     setSong]     = useState(null)
 
   useEffect(() => {
     const scene = initScene(containerRef.current)
@@ -72,6 +74,16 @@ export default function App() {
     applyPool([...poolRef.current, ...newImages], true)
   }
 
+  async function handleLoadMusic(file) {
+    const result = await loadSong(file)
+    setSong(result)
+  }
+
+  async function handleRemoveMusic() {
+    await unload()
+    setSong(null)
+  }
+
   function handleDelete(url) {
     URL.revokeObjectURL(url)
     const next = poolRef.current.filter(img => img.url !== url)
@@ -86,6 +98,9 @@ export default function App() {
         onDelete={handleDelete}
         images={images}
         progress={progress}
+        onLoadMusic={handleLoadMusic}
+        song={song}
+        onRemoveMusic={handleRemoveMusic}
       />
     </>
   )
