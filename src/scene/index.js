@@ -152,12 +152,12 @@ export async function initScene(container) {
 
   const scene  = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(55, W / H, 0.1, 120)
-  camera.position.set(-2.0, 0, 2)
+  camera.position.set(0, 0, 10)
 
   const controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping   = true
   controls.dampingFactor   = 0.06
-  controls.minDistance     = 2
+  controls.minDistance     = 4
   controls.maxDistance     = 40
   controls.rotateSpeed     = 0.6
   controls.zoomSpeed       = 0.8
@@ -199,13 +199,13 @@ export async function initScene(container) {
     // Positions match the MYSCAPE logo layout (M, Y, S, C, A, P, E order)
     // M is closest (front), E is farthest (back)
     const POSITIONS = [
-      [-4.0,  0.45], // M — left middle
-      [-1.1,  0.08], // Y — just left of center
-      [ 0.0,  2.0],  // S — top center
-      [ 2.3,  0.95], // C — upper right
-      [ 3.9,  0.08], // A — right middle
-      [ 2.4, -0.8],  // P — lower right
-      [ 0.0, -2.1],  // E — bottom center
+      [-2.3,  0.7],  // M — far left, upper-middle
+      [-0.9,  0.6],  // Y — left of center
+      [ 0.2,  2.3],  // S — top center
+      [ 1.6,  2.0],  // C — upper right
+      [ 2.4,  0.3],  // A — right middle
+      [ 2.5, -1.4],  // P — lower right
+      [ 1.9, -3.8],  // E — bottom right
     ]
     const tx = POSITIONS[i][0]
     const ty = POSITIONS[i][1]
