@@ -140,10 +140,7 @@ export async function initScene(container) {
   controls.maxDistance     = 40
   controls.rotateSpeed     = 0.6
   controls.zoomSpeed       = 0.8
-  controls.autoRotate      = true
-  controls.autoRotateSpeed = 0.5
-
-  controls.addEventListener('start', () => { controls.autoRotate = false })
+  controls.autoRotate      = false
 
   // ─── Load MYSCAPE assets in order ────────────────────────────────────────
   const assets = await Promise.all(LETTERS.map(loadSvg))
@@ -157,7 +154,7 @@ export async function initScene(container) {
     if (!asset) continue
 
     const { tex, aspect } = asset
-    const base = 1.8 + Math.random() * 1.0   // larger for legibility
+    const base = 2.2
 
     const mat = new THREE.ShaderMaterial({
       vertexShader: VERT, fragmentShader: FRAG,
@@ -174,28 +171,22 @@ export async function initScene(container) {
     mesh.userData.baseSize = base
     mesh.position.set(0, 0, 0)
 
-    const r  = 8
-    const tx = (Math.random() - 0.5) * r * 2
-    const ty = (Math.random() - 0.5) * r * 0.9
-    const tz = (Math.random() - 0.5) * r * 2
-
-    // Sequential by letter: M → Y → S → C → A → P → E bloom out in order
-    const letterIdx = i % LETTERS.length
-    const groupIdx  = Math.floor(i / LETTERS.length)
-    const delay     = letterIdx * 0.13 + groupIdx * 0.025
+    // Diagonal: top-left (M) → bottom-right (E), tightly spaced
+    const tx = (i - 3) * 1.1
+    const ty = (3 - i) * 0.55
+    const tz = 0
 
     gsap.to(mesh.position, {
       x: tx, y: ty, z: tz,
-      duration: 1.6 + Math.random() * 1.2,
-      delay,
+      duration: 1.4 + i * 0.04,
+      delay: i * 0.13,
       ease: 'expo.out',
       onComplete() {
         gsap.to(mesh.position, {
-          x: tx + (Math.random() - 0.5) * 0.5,
-          y: ty + (Math.random() - 0.5) * 0.5,
-          duration: 3 + Math.random() * 4,
+          y: ty + 0.08,
+          duration: 2.5 + Math.random() * 2,
           ease: 'sine.inOut', yoyo: true, repeat: -1,
-          delay: Math.random() * 2,
+          delay: Math.random() * 1.5,
         })
       },
     })
