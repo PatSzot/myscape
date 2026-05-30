@@ -142,30 +142,6 @@ export default function UploadPanel({
 
             {showTheme && (<>
 
-              {/* Scape Name */}
-              <div style={{ ...s.dividerH, background: dividerColor }} />
-              <div style={{ padding: '14px 20px 16px' }}>
-                <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.08em', color: textSecondary, marginBottom: 8 }}>
-                  SCAPE NAME
-                </div>
-                <input
-                  type="text"
-                  placeholder="Untitled Scape"
-                  value={scapeName}
-                  onChange={e => onScapeNameChange(e.target.value)}
-                  style={{
-                    display: 'block', width: '100%', boxSizing: 'border-box',
-                    background: 'transparent', border: 'none',
-                    borderBottom: `1px solid ${dividerColor}`,
-                    color: textPrimary,
-                    fontFamily: HEADLINE, fontSize: 20, fontWeight: 500,
-                    letterSpacing: '-0.01em',
-                    padding: '2px 0 8px',
-                    outline: 'none', caretColor: textPrimary,
-                  }}
-                />
-              </div>
-
               {/* Upload Images — only when no photos loaded */}
               {count === 0 && (<>
                 <div style={{ ...s.dividerH, background: dividerColor }} />
@@ -209,6 +185,30 @@ export default function UploadPanel({
                 <div style={{ ...s.toggleTrack, background: corners === 'rounded' ? textPrimary : trackOff }}>
                   <div style={{ ...s.toggleThumb, transform: corners === 'rounded' ? 'translateX(18px)' : 'translateX(2px)', background: corners === 'rounded' ? (isDark ? '#191812' : '#fff') : textSecondary }} />
                 </div>
+              </div>
+
+              {/* Scape Name */}
+              <div style={{ ...s.dividerH, background: dividerColor }} />
+              <div style={{ padding: '14px 20px 16px' }}>
+                <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.08em', color: textSecondary, marginBottom: 8 }}>
+                  SCAPE NAME
+                </div>
+                <input
+                  type="text"
+                  placeholder="Untitled Scape"
+                  value={scapeName}
+                  onChange={e => onScapeNameChange(e.target.value)}
+                  style={{
+                    display: 'block', width: '100%', boxSizing: 'border-box',
+                    background: 'transparent', border: 'none',
+                    borderBottom: `1px solid ${dividerColor}`,
+                    color: textPrimary,
+                    fontFamily: HEADLINE, fontSize: 20, fontWeight: 500,
+                    letterSpacing: '-0.01em',
+                    padding: '2px 0 8px',
+                    outline: 'none', caretColor: textPrimary,
+                  }}
+                />
               </div>
 
               {/* Animate and Share */}
