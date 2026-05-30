@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import exifr from 'exifr'
 import { initScene } from './scene/index.js'
 import UploadPanel from './ui/UploadPanel.jsx'
-import { loadFromUrl, unload } from './audio/engine.js'
 
 // ─── EXIF helpers ─────────────────────────────────────────────────────────────
 
@@ -41,7 +40,6 @@ export default function App() {
   const poolRef      = useRef([])            // { url, meta }[] — source of truth
   const [images,   setImages]   = useState([])
   const [progress, setProgress] = useState(null)
-  const [song,     setSong]     = useState(null)
   const [theme,    setTheme]    = useState('light')
   const [corners,  setCorners]  = useState('rounded')   // 'rounded' | 'sharp'
 
@@ -82,16 +80,6 @@ export default function App() {
     applyPool([...poolRef.current, ...newImages], true)
   }
 
-  async function handleLoadMusic(track) {
-    const result = await loadFromUrl(track.previewUrl, track.name)
-    setSong({ ...result, artist: track.artist, albumArt: track.albumArt })
-  }
-
-  async function handleRemoveMusic() {
-    await unload()
-    setSong(null)
-  }
-
   function handleThemeChange(t) {
     setTheme(t)
     document.body.style.background = t === 'dark' ? '#191812' : '#F5F3EC'
@@ -122,9 +110,6 @@ export default function App() {
         onDelete={handleDelete}
         images={images}
         progress={progress}
-        onLoadMusic={handleLoadMusic}
-        song={song}
-        onRemoveMusic={handleRemoveMusic}
         theme={theme}
         onThemeChange={handleThemeChange}
         corners={corners}
