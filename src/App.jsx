@@ -40,8 +40,10 @@ export default function App() {
   const poolRef      = useRef([])            // { url, meta }[] — source of truth
   const [images,   setImages]   = useState([])
   const [progress, setProgress] = useState(null)
-  const [theme,    setTheme]    = useState('light')
-  const [corners,  setCorners]  = useState('rounded')   // 'rounded' | 'sharp'
+  const [theme,          setTheme]          = useState('light')
+  const [corners,        setCorners]        = useState('rounded')
+  const [recording,      setRecording]      = useState(false)
+  const [recordProgress, setRecordProgress] = useState(0)   // 'rounded' | 'sharp'
 
   useEffect(() => {
     let mounted = true
@@ -86,6 +88,27 @@ export default function App() {
     sceneRef.current?.setBackground(t === 'dark' ? 0x191812 : 0xF5F3EC)
   }
 
+  async function handleRecord() {
+    if (!sceneRef.current || recording) return
+    setRecording(true)
+    setRecordProgress(0)
+    try {
+      const bgColor = theme === 'dark' ? 0x191812 : 0xF5F3EC
+      const { blob, ext } = await sceneRef.current.startRecording(bgColor, p => setRecordProgress(p))
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `myscape-path1.${ext}`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Recording failed:', err)
+    } finally {
+      setRecording(false)
+      setRecordProgress(0)
+    }
+  }
+
   function handleCornersChange(v) {
     setCorners(v)
     sceneRef.current?.setStyle({ corner: v === 'rounded' ? 0.12 : 0.0 })
@@ -114,6 +137,9 @@ export default function App() {
         onThemeChange={handleThemeChange}
         corners={corners}
         onCornersChange={handleCornersChange}
+        onRecord={handleRecord}
+        isRecording={recording}
+        recordProgress={recordProgress}
       />
     </>
   )

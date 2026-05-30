@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import gsap from 'gsap'
+import { recordPath1 } from './recorder.js'
 
 // ─── Shaders ──────────────────────────────────────────────────────────────────
 
@@ -320,10 +321,13 @@ export async function initScene(container) {
   window.addEventListener('resize', onResize)
 
   let rafId
+  let paused = false
   function animate() {
     rafId = requestAnimationFrame(animate)
-    controls.update()
-    renderer.render(scene, camera)
+    if (!paused) {
+      controls.update()
+      renderer.render(scene, camera)
+    }
   }
   animate()
 
@@ -343,6 +347,14 @@ export async function initScene(container) {
         mesh.material.uniforms.uSizeX.value = asset.aspect >= 1 ? base : base * asset.aspect
         mesh.material.uniforms.uSizeY.value = asset.aspect >= 1 ? base / asset.aspect : base
       })
+    },
+    async startRecording(bgColor, onProgress) {
+      paused = true
+      try {
+        return await recordPath1(renderer, scene, particles, bgColor, onProgress)
+      } finally {
+        paused = false
+      }
     },
     cleanup() {
       cancelAnimationFrame(rafId)

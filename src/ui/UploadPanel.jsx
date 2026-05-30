@@ -9,10 +9,12 @@ export default function UploadPanel({
   onLoad, onDelete, images, progress,
   theme, onThemeChange,
   corners, onCornersChange,
+  onRecord, isRecording, recordProgress,
 }) {
   const photoInputRef = useRef(null)
-  const [isEditing,  setIsEditing]  = useState(false)
-  const [showTheme,  setShowTheme]  = useState(false)
+  const [isEditing,    setIsEditing]    = useState(false)
+  const [showTheme,    setShowTheme]    = useState(false)
+  const [showAnimate,  setShowAnimate]  = useState(false)
   const count     = images.length
   const isLoading = progress !== null
   const isDark    = theme === 'dark'
@@ -187,22 +189,46 @@ export default function UploadPanel({
 
             {themeSection}
 
-            {count === 0 && (
-              <>
-                <div style={{ ...s.dividerH, background: dividerColor }} />
+            <div style={{ ...s.dividerH, background: dividerColor }} />
 
-                <button style={s.mainBtn}>
-                  <div style={{ ...s.iconWrap, background: iconBg, color: iconColor }}>
-                    <i className="ri-share-line" style={{ fontSize: 22 }} />
-                  </div>
-                  <div style={s.mainText}>
-                    <span style={{ ...s.mainLabel, fontFamily: HEADLINE, color: textPrimary }}>Animate and Share</span>
-                    <span style={{ ...s.mainSub, fontFamily: MONO, color: textSecondary }}>COMING SOON</span>
-                  </div>
-                  <i className="ri-arrow-right-s-line" style={{ ...s.chevron, color: textMuted }} />
-                </button>
-              </>
-            )}
+            {/* ── Animate and Share ── */}
+            <button style={s.mainBtn} onClick={() => setShowAnimate(v => !v)}>
+              <div style={{ ...s.iconWrap, background: iconBg, color: iconColor }}>
+                <i className="ri-share-line" style={{ fontSize: 22 }} />
+              </div>
+              <div style={s.mainText}>
+                <span style={{ ...s.mainLabel, fontFamily: HEADLINE, color: textPrimary }}>Animate and Share</span>
+                <span style={{ ...s.mainSub, fontFamily: MONO, color: textSecondary }}>EXPORT AS VIDEO</span>
+              </div>
+              <i className={showAnimate ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'} style={{ ...s.chevron, color: textMuted }} />
+            </button>
+
+            {showAnimate && (<>
+              <div style={{ ...s.dividerH, background: dividerColor }} />
+              <button
+                style={{ ...s.mainBtn, opacity: isRecording ? 0.6 : 1 }}
+                onClick={isRecording ? undefined : onRecord}
+                disabled={isRecording}
+              >
+                <div style={{ ...s.iconWrap, background: iconBg, color: iconColor }}>
+                  <i className="ri-video-line" style={{ fontSize: 22 }} />
+                </div>
+                <div style={{ ...s.mainText }}>
+                  <span style={{ ...s.mainLabel, fontFamily: HEADLINE, color: textPrimary }}>Path 1</span>
+                  <span style={{ ...s.mainSub, fontFamily: MONO, color: textSecondary }}>
+                    {isRecording
+                      ? `RECORDING  ${Math.round(recordProgress * 100)}%`
+                      : '1080 × 1920  ·  15 SECS'}
+                  </span>
+                  {isRecording && (
+                    <div style={{ height: 3, borderRadius: 2, marginTop: 6, overflow: 'hidden', background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }}>
+                      <div style={{ height: '100%', borderRadius: 2, background: textPrimary, width: `${Math.round(recordProgress * 100)}%`, transition: 'width 0.3s linear' }} />
+                    </div>
+                  )}
+                </div>
+                {!isRecording && <i className="ri-arrow-right-s-line" style={{ ...s.chevron, color: textMuted }} />}
+              </button>
+            </>)}
           </div>
         )}
 
