@@ -131,12 +131,8 @@ export default function UploadPanel({
 
             {/* Controls accordion header */}
             <button style={s.mainBtn} onClick={() => setShowTheme(v => !v)}>
-              <div style={{ ...s.iconWrap, background: iconBg, color: iconColor }}>
-                <i className="ri-settings-3-line" style={{ fontSize: 22 }} />
-              </div>
               <div style={s.mainText}>
-                <span style={{ ...s.mainLabel, fontFamily: HEADLINE, color: textPrimary }}>Customize</span>
-                <span style={{ ...s.mainSub, fontFamily: MONO, color: textSecondary }}>{isDark ? 'DARK' : 'LIGHT'} THEME · {corners === 'rounded' ? 'ROUNDED' : 'SQUARE'} CORNERS</span>
+                <span style={{ ...s.mainLabel, fontFamily: HEADLINE, color: textPrimary }}>Create My Scape</span>
               </div>
               <i className={showTheme ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'} style={{ ...s.chevron, color: textMuted }} />
             </button>
