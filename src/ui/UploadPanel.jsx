@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
 import 'remixicon/fonts/remixicon.css'
+import ExportPanel from '../export/ExportPanel.jsx'
 
 const MAX_PER_PICK = 100
 const MONO     = '"IBM Plex Mono", monospace'
@@ -9,8 +10,6 @@ export default function UploadPanel({
   onLoad, onDelete, images, progress,
   theme, onThemeChange,
   corners, onCornersChange,
-  onRecord, isRecording, recordProgress,
-  recordedVideo, onSaveVideo,
   onCopyLink,
   scapeName, onScapeNameChange,
 }) {
@@ -297,31 +296,7 @@ export default function UploadPanel({
                 )}
 
                 <div style={{ ...s.dividerH, background: dividerColor }} />
-                <button
-                  style={{ ...s.mainBtn, opacity: isRecording ? 0.6 : 1 }}
-                  onClick={isRecording ? undefined : recordedVideo ? onSaveVideo : onRecord}
-                  disabled={isRecording}
-                >
-                  <div style={{ ...s.iconWrap, background: recordedVideo ? textPrimary : iconBg, color: recordedVideo ? (isDark ? '#191812' : '#fff') : iconColor }}>
-                    <i className={recordedVideo ? 'ri-download-2-line' : 'ri-video-line'} style={{ fontSize: 22 }} />
-                  </div>
-                  <div style={s.mainText}>
-                    <span style={{ ...s.mainLabel, fontFamily: HEADLINE, color: textPrimary }}>Video Loop 1</span>
-                    <span style={{ ...s.mainSub, fontFamily: MONO, color: recordedVideo ? textPrimary : textSecondary }}>
-                      {isRecording
-                        ? `RECORDING  ${Math.round(recordProgress * 100)}%`
-                        : recordedVideo
-                          ? 'READY — TAP TO SAVE'
-                          : '1080 × 1920  ·  15 SECS'}
-                    </span>
-                    {isRecording && (
-                      <div style={{ height: 3, borderRadius: 2, marginTop: 6, overflow: 'hidden', background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }}>
-                        <div style={{ height: '100%', borderRadius: 2, background: textPrimary, width: `${Math.round(recordProgress * 100)}%`, transition: 'width 0.3s linear' }} />
-                      </div>
-                    )}
-                  </div>
-                  {!isRecording && <i className="ri-arrow-right-s-line" style={{ ...s.chevron, color: textMuted }} />}
-                </button>
+                <ExportPanel images={images} theme={theme} corners={corners} />
               </>)}
 
             </>)}
