@@ -7,7 +7,6 @@ const HEADLINE = '"Zalando Sans SemiExpanded", sans-serif'
 
 const SLIDERS = [
   { label: 'SPEED',  key: 'speed',  min: 0.1, max: 3.0, step: 0.05 },
-  { label: 'ZOOM',   key: 'zoom',   min: 0.5, max: 3.5, step: 0.05 },
   { label: 'RADIUS', key: 'radius', min: 0.5, max: 4.0, step: 0.05 },
   { label: 'SCALE',  key: 'scale',  min: 0.2, max: 2.0, step: 0.05 },
   { label: 'COUNT',  key: 'count',  min: 5,   max: 50,  step: 1     },
@@ -251,6 +250,9 @@ export default function LeftPanel({
                 {images.length} PHOTO{images.length !== 1 ? 'S' : ''} LOADED
               </div>
             )}
+            <div style={{ fontFamily: MONO, fontSize: 9, color: muted, letterSpacing: '0.06em', marginTop: 10, opacity: 0.7 }}>
+              Scroll to zoom · Drag to orbit
+            </div>
           </section>
         )}
 

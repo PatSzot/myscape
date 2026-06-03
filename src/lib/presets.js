@@ -1,5 +1,3 @@
-import { Vector3 } from 'three'
-
 // ─── Shared layout helper ─────────────────────────────────────────────────────
 
 // Apply scale + visibility to all meshes based on count
@@ -35,16 +33,6 @@ const SPHERE = {
     }
   },
 
-  getCameraState(t, controls) {
-    const { zoom, radius } = controls
-    const position = new Vector3(
-      Math.sin(t * Math.PI * 2) * zoom,
-      Math.sin(t * Math.PI) * 0.4 * zoom,
-      Math.cos(t * Math.PI * 2) * zoom
-    ).multiplyScalar(radius)
-    const target = new Vector3(0, 0, 0)
-    return { position, target }
-  },
 }
 
 const RING = {
@@ -62,16 +50,6 @@ const RING = {
     }
   },
 
-  getCameraState(t, controls) {
-    const { zoom, radius } = controls
-    const position = new Vector3(
-      Math.sin(t * Math.PI * 2) * zoom,
-      zoom * 0.5,
-      Math.cos(t * Math.PI * 2) * zoom
-    ).multiplyScalar(radius)
-    const target = new Vector3(0, 0, 0)
-    return { position, target }
-  },
 }
 
 const HELIX = {
@@ -94,20 +72,6 @@ const HELIX = {
     }
   },
 
-  getCameraState(t, controls) {
-    const { zoom, radius, count } = controls
-    const helixHeight = count * 0.45
-    const tMapped     = (t * 2) % 1
-    const angle       = tMapped * Math.PI * 4
-    const y           = (tMapped - 0.5) * helixHeight
-    const position    = new Vector3(
-      Math.sin(angle) * zoom,
-      y,
-      Math.cos(angle) * zoom
-    ).multiplyScalar(radius * 0.8)
-    const target = new Vector3(0, y + 0.5, 0)
-    return { position, target }
-  },
 }
 
 const FLOW = {
@@ -128,21 +92,6 @@ const FLOW = {
     }
   },
 
-  getCameraState(t, controls) {
-    const { zoom, radius } = controls
-    // Integer frequency multiples guarantee getCameraState(0) === getCameraState(1) (seamless loop)
-    const position = new Vector3(
-      Math.sin(t * Math.PI * 2 * 2) * zoom * radius,       // 2 full cycles
-      Math.sin(t * Math.PI * 2 * 1) * zoom * radius * 0.4, // 1 full cycle
-      Math.cos(t * Math.PI * 2 * 3) * zoom * radius        // 3 full cycles
-    )
-    const target = new Vector3(
-      Math.sin(t * Math.PI * 2) * radius * 0.5,
-      0,
-      Math.cos(t * Math.PI * 2) * radius * 0.5
-    )
-    return { position, target }
-  },
 }
 
 const EXPLORE = {
@@ -164,8 +113,6 @@ const EXPLORE = {
     }
   },
 
-  // null → OrbitControls takes over
-  getCameraState() { return null },
 }
 
 // ─── Rotating Images (fan/wheel) ──────────────────────────────────────────────
@@ -216,13 +163,6 @@ const ROTATING_IMAGES = {
     })
   },
 
-  getCameraState(t, controls, canvasWidth = 1080, canvasHeight = 1080) {
-    const referenceSize = Math.min(canvasWidth, canvasHeight)
-    return {
-      position: new Vector3(0, 0, controls.zoom * 5 * (1080 / referenceSize)),
-      target:   new Vector3(0, 0, 0),
-    }
-  },
 }
 
 // ─── Exports ──────────────────────────────────────────────────────────────────

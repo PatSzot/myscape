@@ -8,6 +8,7 @@ import {
   MeshBasicMaterial,
   Mesh,
   CanvasTexture,
+  DoubleSide,
 } from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import gsap from 'gsap'
@@ -20,7 +21,6 @@ function renderNameToTexture(name) {
   const fontSize = 52
   const padding  = 24
 
-  // Measure with a temp canvas to get exact text width
   const tmp  = document.createElement('canvas')
   const tctx = tmp.getContext('2d')
   tctx.font  = `500 ${fontSize}px "Zalando Sans SemiExpanded", sans-serif`
@@ -44,13 +44,42 @@ function renderNameToTexture(name) {
   return { canvas, aspect: w / h }
 }
 
+// ─── Placeholder tile ─────────────────────────────────────────────────────────
+
+function createPlaceholderTile() {
+  const size = 256
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = size
+  const ctx = canvas.getContext('2d')
+
+  ctx.fillStyle = '#111110'
+  ctx.fillRect(0, 0, size, size)
+  ctx.strokeStyle = 'rgba(255,255,255,0.07)'
+  ctx.lineWidth = 1
+  ctx.strokeRect(1, 1, size - 2, size - 2)
+  ctx.font = `300 ${Math.round(size * 0.42)}px "Zalando Sans SemiExpanded", sans-serif`
+  ctx.fillStyle = 'rgba(255,255,255,0.10)'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('M', size / 2, size / 2)
+
+  const texture = new CanvasTexture(canvas)
+  const geo = new PlaneGeometry(1, 1)
+  const mat = new MeshBasicMaterial({ map: texture, side: DoubleSide, transparent: true })
+  const mesh = new Mesh(geo, mat)
+  mesh.userData.isPlaceholder = true
+  return mesh
+}
+
+const PLACEHOLDER_COUNTS = { sphere: 16, ring: 12, helix: 14, rotatingImages: 9 }
+
 // ─── Scene factory ─────────────────────────────────────────────────────────────
 
 export function createScapeScene(canvas) {
   // ── Renderer ───────────────────────────────────────────────────────────────
   const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-  renderer.setClearColor(0x000000, 0)   // transparent — CSS bg shows through
+  renderer.setClearColor(0x000000, 0)
 
   // ── Camera ─────────────────────────────────────────────────────────────────
   const aspect = canvas.width > 0 && canvas.height > 0 ? canvas.width / canvas.height : 1
@@ -58,27 +87,19 @@ export function createScapeScene(canvas) {
   camera.position.set(0, 0, 6)
 
   // ── Scene ──────────────────────────────────────────────────────────────────
-  const scene    = new Scene()
-  const fanGroup = new Group()
+  const scene          = new Scene()
+  const formationGroup = new Group()  // sphere / ring / helix meshes live here
+  const fanGroup       = new Group()  // rotatingImages meshes live here
   scene.add(new AmbientLight(0xffffff, 1.0))
+  scene.add(formationGroup)
   scene.add(fanGroup)
-  // Camera must be in scene for its children (name mesh) to render
-  scene.add(camera)
+  scene.add(camera)  // camera in scene so nameMesh (child of camera) renders
 
-  // ── OrbitControls (only active in 'explore' mode) ──────────────────────────
+  // ── OrbitControls — enabled for all presets ────────────────────────────────
   const orbitControls = new OrbitControls(camera, canvas)
-  orbitControls.enableDamping  = true
-  orbitControls.dampingFactor  = 0.05
-  orbitControls.enabled        = false
-
-  // ── Scroll-to-zoom for animated presets ────────────────────────────────────
-  function onWheelZoom(e) {
-    if (currentPresetId !== 'explore') {
-      userZoomDelta = Math.max(-3, Math.min(5, userZoomDelta - e.deltaY * 0.01))
-      e.preventDefault()
-    }
-  }
-  canvas.addEventListener('wheel', onWheelZoom, { passive: false })
+  orbitControls.enableDamping = true
+  orbitControls.dampingFactor = 0.05
+  orbitControls.enabled       = true
 
   // ── State ──────────────────────────────────────────────────────────────────
   let meshes          = []
@@ -89,7 +110,6 @@ export function createScapeScene(canvas) {
   let currentControls = { ...PRESETS['sphere'].defaults }
   let animClock       = 0
   let lastTimestamp   = null
-  let userZoomDelta   = 0
   let canvasWidth     = 1080
   let canvasHeight    = 1080
 
@@ -119,6 +139,22 @@ export function createScapeScene(canvas) {
     nameMesh = null
   }
 
+  function spawnPlaceholders(presetId, isRotating) {
+    const n = PLACEHOLDER_COUNTS[presetId] ?? 0
+    for (let i = 0; i < n; i++) {
+      const mesh = createPlaceholderTile()
+      isRotating ? fanGroup.add(mesh) : formationGroup.add(mesh)
+      meshes.push(mesh)
+    }
+  }
+
+  function resetCamera(presetId, controls) {
+    const cz = presetId === 'rotatingImages' ? 6 : controls.radius * 2.6
+    camera.position.set(0, 0, cz)
+    orbitControls.target.set(0, 0, 0)
+    orbitControls.update()
+  }
+
   // ── Public API ─────────────────────────────────────────────────────────────
 
   async function setPhotos(urlArray) {
@@ -128,21 +164,24 @@ export function createScapeScene(canvas) {
       gsap.killTweensOf(meshes.map(m => m.position))
       gsap.killTweensOf(meshes.map(m => m.rotation))
     }
-
-    for (const mesh of meshes) disposePhotoPlane(mesh)  // disposePhotoPlane removes from parent
+    for (const mesh of meshes) disposePhotoPlane(mesh)
     meshes = []
 
-    if (!currentUrls.length) return
-
     const isRotating = currentPresetId === 'rotatingImages'
-    const newMeshes  = await Promise.all(
+
+    if (currentUrls.length === 0) {
+      spawnPlaceholders(currentPresetId, isRotating)
+      applyLayout()
+      return
+    }
+
+    const newMeshes = await Promise.all(
       currentUrls.map(url => isRotating ? createSquarePhotoPlane(url) : createPhotoPlane(url, 1))
     )
     for (const mesh of newMeshes) {
-      isRotating ? fanGroup.add(mesh) : scene.add(mesh)
+      isRotating ? fanGroup.add(mesh) : formationGroup.add(mesh)
       meshes.push(mesh)
     }
-
     applyLayout()
   }
 
@@ -158,74 +197,59 @@ export function createScapeScene(canvas) {
     const wasRotating = currentPresetId === 'rotatingImages'
     const isRotating  = presetId === 'rotatingImages'
 
-    // No meshes — just update state
-    if (meshes.length === 0) {
-      if (wasRotating && !isRotating) fanGroup.rotation.z = 0
-      currentPreset   = preset
-      currentPresetId = presetId
-      currentControls = { ...controls }
-      orbitControls.enabled = (presetId === 'explore')
-      animClock = 0
-      userZoomDelta = 0
+    // Reset formation rotation and clock on every preset switch
+    formationGroup.rotation.set(0, 0, 0)
+    fanGroup.rotation.set(0, 0, 0)
+    animClock = 0
+
+    currentPreset   = preset
+    currentPresetId = presetId
+    currentControls = { ...controls }
+
+    resetCamera(presetId, controls)
+
+    // No real photos: replace placeholder tiles for the new preset
+    if (currentUrls.length === 0) {
+      for (const mesh of meshes) disposePhotoPlane(mesh)
+      meshes = []
+      spawnPlaceholders(presetId, isRotating)
+      applyLayout()
       return
     }
 
-    // Switching between rotating ↔ non-rotating: recreate planes in correct format
+    // Switching between rotating ↔ non-rotating: must recreate planes
     if (wasRotating !== isRotating) {
       for (const mesh of meshes) disposePhotoPlane(mesh)
       meshes = []
-      if (wasRotating) fanGroup.rotation.z = 0
-
-      currentPreset   = preset
-      currentPresetId = presetId
-      currentControls = { ...controls }
-      orbitControls.enabled = (presetId === 'explore')
-      animClock = 0
-      userZoomDelta = 0
-
-      if (currentUrls.length > 0) {
-        const newMeshes = await Promise.all(
-          currentUrls.map(url => isRotating ? createSquarePhotoPlane(url) : createPhotoPlane(url, 1))
-        )
-        for (const mesh of newMeshes) {
-          isRotating ? fanGroup.add(mesh) : scene.add(mesh)
-          meshes.push(mesh)
-        }
-        applyLayout()
+      const newMeshes = await Promise.all(
+        currentUrls.map(url => isRotating ? createSquarePhotoPlane(url) : createPhotoPlane(url, 1))
+      )
+      for (const mesh of newMeshes) {
+        isRotating ? fanGroup.add(mesh) : formationGroup.add(mesh)
+        meshes.push(mesh)
       }
+      applyLayout()
       return
     }
 
-    // Both non-rotating: tween between positions
+    // Same type with real photos: tween to new layout (non-rotating only)
     if (!isRotating) {
       const saved = meshes.map(m => ({
         px: m.position.x, py: m.position.y, pz: m.position.z,
         ry: m.rotation.y,
       }))
-
       preset.layoutPhotos(meshes, controls, canvasWidth, canvasHeight)
-
       meshes.forEach((mesh, i) => {
         const tx = mesh.position.x, ty = mesh.position.y, tz = mesh.position.z
         const tRy = mesh.rotation.y
-
         mesh.position.set(saved[i].px, saved[i].py, saved[i].pz)
         mesh.rotation.y = saved[i].ry
-
         gsap.to(mesh.position, { x: tx, y: ty, z: tz, duration: 0.8, ease: 'power2.inOut' })
         gsap.to(mesh.rotation, { y: tRy,           duration: 0.8, ease: 'power2.inOut' })
       })
     } else {
-      // Staying in rotatingImages (controls update)
       applyLayout()
     }
-
-    currentPreset   = preset
-    currentPresetId = presetId
-    currentControls = { ...controls }
-    orbitControls.enabled = (presetId === 'explore')
-    animClock = 0
-    userZoomDelta = 0
   }
 
   function updateControls(controls) {
@@ -240,7 +264,6 @@ export function createScapeScene(canvas) {
     const { canvas: tc, aspect } = renderNameToTexture(name)
     const texture = new CanvasTexture(tc)
 
-    // Size: ~0.55 units wide in camera space at z=-2 (subtle caption scale)
     const w   = 0.55
     const h   = w / aspect
     const geo = new PlaneGeometry(w, h)
@@ -251,32 +274,25 @@ export function createScapeScene(canvas) {
 
     nameMesh = new Mesh(geo, mat)
     nameMesh.renderOrder = 999
-    // Position bottom-center in camera space, 2 units ahead
     nameMesh.position.set(0, 0, -2)
-
     camera.add(nameMesh)
   }
 
   function tick(timestamp) {
     if (lastTimestamp === null) lastTimestamp = timestamp
+    const dt = (timestamp - lastTimestamp) / 1000
+    lastTimestamp = timestamp
 
-    if (currentPresetId === 'explore') {
-      orbitControls.update()
-    } else if (currentPreset && meshes.length > 0) {
-      const dt = (timestamp - lastTimestamp) / 1000
-      animClock = (animClock + dt * currentControls.speed * 0.1) % 1.0
-      driveFanAnimation()
-      const state = currentPreset.getCameraState(animClock, currentControls, canvasWidth, canvasHeight)
-      if (state) {
-        const dir = state.position.clone().sub(state.target).normalize()
-        const baseDist = state.position.distanceTo(state.target)
-        const adjustedDist = Math.max(0.5, baseDist + userZoomDelta)
-        camera.position.copy(state.target).addScaledVector(dir, adjustedDist)
-        camera.lookAt(state.target)
+    if (meshes.length > 0) {
+      if (['sphere', 'ring', 'helix'].includes(currentPresetId)) {
+        formationGroup.rotation.y += dt * currentControls.speed * 0.6
+      } else if (currentPresetId === 'rotatingImages') {
+        animClock = (animClock + dt * currentControls.speed * 0.1) % 1.0
+        driveFanAnimation()
       }
     }
 
-    lastTimestamp = timestamp
+    orbitControls.update()
     renderer.render(scene, camera)
   }
 
@@ -294,10 +310,10 @@ export function createScapeScene(canvas) {
   function dispose() {
     gsap.killTweensOf(meshes.map(m => m.position))
     gsap.killTweensOf(meshes.map(m => m.rotation))
-    for (const mesh of meshes) disposePhotoPlane(mesh)  // removes from parent (scene or fanGroup)
+    for (const mesh of meshes) disposePhotoPlane(mesh)
     meshes = []
     disposeNameMesh()
-    canvas.removeEventListener('wheel', onWheelZoom)
+    scene.remove(formationGroup)
     scene.remove(fanGroup)
     scene.remove(camera)
     orbitControls.dispose()

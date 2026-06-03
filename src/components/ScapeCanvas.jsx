@@ -68,7 +68,7 @@ const ScapeCanvas = forwardRef(function ScapeCanvas({ photos, presetId, controls
   return (
     <canvas
       ref={canvasRef}
-      className={presetId === 'explore' ? 'canvas-explore' : 'canvas-animated'}
+      className="canvas-explore"
       style={{ display: 'block', width: '100%', height: '100%' }}
     />
   )
