@@ -1,30 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import 'remixicon/fonts/remixicon.css'
-import { PRESET_IDS, PRESETS } from '../lib/presets.js'
 
-const MONO     = '"IBM Plex Mono", monospace'
-const HEADLINE = '"Zalando Sans SemiExpanded", sans-serif'
-
-const SLIDERS = [
-  { label: 'SPEED',  key: 'speed',  min: 0.1, max: 3.0, step: 0.05 },
-  { label: 'RADIUS', key: 'radius', min: 0.5, max: 4.0, step: 0.05 },
-  { label: 'SCALE',  key: 'scale',  min: 0.2, max: 2.0, step: 0.05 },
-  { label: 'COUNT',  key: 'count',  min: 5,   max: 50,  step: 1     },
-]
-
-const ASPECTS = [
-  { label: 'Open', value: 'open', size: null },
-  { label: '1:1',  value: '1:1',  size: { width: 1080, height: 1080 } },
-  { label: '9:16', value: '9:16', size: { width: 1080, height: 1920 } },
-  { label: '16:9', value: '16:9', size: { width: 1920, height: 1080 } },
-]
+const MONO = '"IBM Plex Mono", monospace'
 
 export default function LeftPanel({
   theme, onThemeChange,
   corners, onCornersChange,
-  scapeName, onScapeNameChange,
-  presetId, controls, onPresetChange, onControlsChange,
-  aspectRatio, onAspectChange,
   images, onUploadClick, onDelete, onRotate,
   onShare,
 }) {
@@ -35,7 +16,7 @@ export default function LeftPanel({
   const panelRef  = useRef(null)
   const toggleRef = useRef(null)
 
-  // Auto-open on desktop resize, close on mobile resize
+  // Auto-open on desktop resize
   useEffect(() => {
     function handleResize() {
       if (window.innerWidth >= 1024) setIsOpen(true)
@@ -67,11 +48,8 @@ export default function LeftPanel({
   const divider   = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'
   const bg        = isDark ? '#191812' : '#F0EDE4'
   const rowBg     = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'
-  const accent    = text
   const toggleOff = isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)'
-
-  const isLandscape = presetId === 'landscape'
-  const canShare    = images.length > 0 && !copying
+  const canShare  = images.length > 0 && !copying
 
   async function handleShare() {
     if (!canShare) return
@@ -106,13 +84,8 @@ export default function LeftPanel({
     return <div style={{ height: 1, background: divider, margin: '4px -16px' }} />
   }
 
-  function sliderVal(key) {
-    return key === 'count' ? Math.round(controls[key]) : controls[key].toFixed(2)
-  }
-
   return (
     <>
-    {/* Toggle button */}
     <button
       ref={toggleRef}
       className={`panel-toggle-btn${isOpen ? ' panel-toggle-btn--open' : ''}`}
@@ -125,7 +98,6 @@ export default function LeftPanel({
 
     <aside ref={panelRef} className={`panel panel--left ${isOpen ? 'panel--visible' : 'panel--hidden'}`}>
 
-      {/* ── Scrollable content ─────────────────────────────────────────── */}
       <div className="panel-scroll" style={{ flex: 1, overflowY: 'auto', padding: '18px 16px' }}>
 
         {/* Photos */}
@@ -171,28 +143,11 @@ export default function LeftPanel({
         {/* Style */}
         <section style={{ margin: '16px 0' }}>
           <Label>Style</Label>
-
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.09em', color: muted, textTransform: 'uppercase', marginBottom: 6 }}>Name</div>
-            <input
-              type="text" placeholder="Untitled Scape" value={scapeName}
-              onChange={e => onScapeNameChange(e.target.value)}
-              style={{
-                display: 'block', width: '100%', boxSizing: 'border-box',
-                background: 'transparent', border: 'none',
-                borderBottom: `1px solid ${divider}`,
-                color: text, fontFamily: HEADLINE, fontSize: 15, fontWeight: 500,
-                padding: '2px 0 6px', outline: 'none', caretColor: text,
-              }}
-            />
-          </div>
-
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, cursor: 'pointer' }}
             onClick={() => onCornersChange(corners === 'rounded' ? 'sharp' : 'rounded')}>
             <span style={{ fontFamily: MONO, fontSize: 9, color: muted, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Rounded Corners</span>
             <Toggle on={corners === 'rounded'} text={text} bg={bg} off={toggleOff} />
           </div>
-
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
             onClick={() => onThemeChange(isDark ? 'light' : 'dark')}>
             <span style={{ fontFamily: MONO, fontSize: 9, color: muted, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Dark Mode</span>
@@ -200,78 +155,11 @@ export default function LeftPanel({
           </div>
         </section>
 
-        <Divider />
-
-        {/* Organize */}
-        <section style={{ margin: '16px 0' }}>
-          <Label>Organize</Label>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {['landscape', 'sphere', 'ring', 'helix'].map(id => (
-            <PresetBtn
-              key={id}
-              id={id}
-              label={id === 'landscape' ? 'LANDSCAPE' : PRESETS[id].label}
-              active={presetId === id}
-              rowBg={rowBg} text={text} muted={muted}
-              onSelect={onPresetChange}
-            />
-          ))}
-          </div>
-        </section>
-
-        <Divider />
-
-        {/* Composition */}
-        {!isLandscape && (
-          <section style={{ margin: '16px 0' }}>
-            <Label>Composition</Label>
-            {SLIDERS.map(({ label, key, min, max, step }) => (
-              <div key={key} style={{ marginBottom: 11 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.08em', color: muted, textTransform: 'uppercase' }}>{label}</span>
-                  <span style={{ fontFamily: MONO, fontSize: 9, color: text, fontVariantNumeric: 'tabular-nums' }}>{sliderVal(key)}</span>
-                </div>
-                <input type="range" min={min} max={max} step={step} value={controls[key]}
-                  onChange={e => onControlsChange({ ...controls, [key]: parseFloat(e.target.value) })}
-                  style={{ width: '100%', accentColor: accent, cursor: 'pointer', display: 'block' }}
-                />
-              </div>
-            ))}
-            <div style={{ fontFamily: MONO, fontSize: 9, color: muted, letterSpacing: '0.06em', marginTop: 10, opacity: 0.7 }}>
-              Scroll to zoom · Drag to orbit
-            </div>
-          </section>
-        )}
-
-        <Divider />
-
-        {/* Format */}
-        <section style={{ margin: '16px 0' }}>
-          <Label>Format</Label>
-          <div style={{ display: 'flex', gap: 4 }}>
-            {ASPECTS.map(({ label, value, size }) => {
-              const active = aspectRatio === value
-              return (
-                <button key={value} onClick={() => onAspectChange(value, size)} style={{
-                  flex: 1, padding: '5px 0', borderRadius: 4, border: 'none', cursor: 'pointer',
-                  background: active ? (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)') : rowBg,
-                  fontFamily: MONO, fontSize: 10, letterSpacing: '0.05em',
-                  color: active ? text : muted,
-                  transition: 'all 0.14s',
-                }}>
-                  {label}
-                </button>
-              )
-            })}
-          </div>
-        </section>
-
       </div>
 
-      {/* ── Share CTA — pinned to bottom ───────────────────────────────── */}
+      {/* Share CTA — pinned to bottom */}
       <div style={{ flexShrink: 0, padding: '12px 16px 16px' }}>
 
-        {/* Fallback URL (iOS clipboard workaround) */}
         {shareUrl && (
           <input readOnly value={shareUrl}
             onFocus={e => e.target.select()}
@@ -306,21 +194,6 @@ export default function LeftPanel({
 
     </aside>
     </>
-  )
-}
-
-function PresetBtn({ id, label, active, rowBg, text, muted, onSelect }) {
-  return (
-    <button onClick={() => onSelect(id)} style={{
-      background: active ? rowBg : 'none',
-      border: 'none', cursor: 'pointer', textAlign: 'left',
-      fontFamily: '"IBM Plex Mono", monospace', fontSize: 11, letterSpacing: '0.06em',
-      color: active ? text : muted,
-      padding: '6px 8px', borderRadius: 4,
-      transition: 'color 0.12s, background 0.12s',
-    }}>
-      {label}
-    </button>
   )
 }
 
