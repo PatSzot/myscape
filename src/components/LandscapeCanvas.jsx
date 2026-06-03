@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { initScene } from '../scene/index.js'
 
-export default function LandscapeCanvas({ images, corner = 0 }) {
+export default function LandscapeCanvas({ images, corner = 0, onSceneReady }) {
   const containerRef = useRef(null)
   const sceneRef     = useRef(null)
   // Track latest values so we can apply them once async init finishes
@@ -19,6 +19,7 @@ export default function LandscapeCanvas({ images, corner = 0 }) {
     initScene(container).then(scene => {
       if (!mounted) { scene.cleanup(); return }
       sceneRef.current = scene
+      onSceneReady?.(scene)
       scene.setStyle({ corner: cornerRef.current })
       if (imagesRef.current?.length > 0) scene.updateTextures(imagesRef.current)
     })

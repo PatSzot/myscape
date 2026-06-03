@@ -349,10 +349,16 @@ export async function initScene(container) {
         mesh.material.uniforms.uSizeY.value = asset.aspect >= 1 ? base / asset.aspect : base
       })
     },
-    async startRecording(bgColor, onProgress) {
+    getCanvas() { return renderer.domElement },
+    getSize() { return { width: renderer.domElement.width, height: renderer.domElement.height } },
+    pauseLoop()   { paused = true  },
+    resumeLoop()  { paused = false },
+    togglePause() { paused = !paused },
+    setBgColor(hex) { renderer.setClearColor(hex, 1) },
+    async startRecording(bgColor, fps = 30, onProgress) {
       paused = true
       try {
-        return await recordPath1(renderer, scene, particles, bgColor, onProgress)
+        return await recordPath1(renderer, scene, particles, bgColor, fps, onProgress)
       } finally {
         paused = false
       }

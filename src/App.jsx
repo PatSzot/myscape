@@ -3,6 +3,8 @@ import exifr from 'exifr'
 import LandscapeCanvas from './components/LandscapeCanvas.jsx'
 import LeftPanel from './components/LeftPanel.jsx'
 import RightPanel from './components/RightPanel.jsx'
+import ExportPanel from './export/ExportPanel.jsx'
+import BottomBar from './components/BottomBar.jsx'
 import './styles/layout.css'
 
 // ─── EXIF helper ──────────────────────────────────────────────────────────────
@@ -84,10 +86,17 @@ const VIEW_MODE = _params.has('view') || !!SHARE_ID
 export default function App() {
   const photoInputRef = useRef(null)
   const poolRef       = useRef([])
+  const sceneRef      = useRef(null)
 
-  const [images,  setImages]  = useState([])
-  const [theme,   setTheme]   = useState('dark')
-  const [corners, setCorners] = useState('sharp')
+  const [images,         setImages]         = useState([])
+  const [theme,          setTheme]          = useState('dark')
+  const [corner,         setCorner]         = useState(0.0)
+  const [mode,           setMode]           = useState('explore')
+  const [fps,            setFps]            = useState(30)
+  const [aspectRatio,    setAspectRatio]    = useState('16:9')
+  const [isExporting,    setIsExporting]    = useState(false)
+  const [exportProgress, setExportProgress] = useState(0)
+  const [exportDuration, setExportDuration] = useState(15)
 
   // ── Body background ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -100,8 +109,9 @@ export default function App() {
     fetch(`/api/share?id=${SHARE_ID}`)
       .then(r => r.ok ? r.json() : Promise.reject(new Error(`API ${r.status}`)))
       .then(({ images: imgs = [], settings = {} }) => {
-        if (settings.theme)   setTheme(settings.theme)
-        if (settings.corners) setCorners(settings.corners)
+        if (settings.theme)  setTheme(settings.theme)
+        if (settings.corner != null) setCorner(settings.corner)
+        else if (settings.corners === 'rounded') setCorner(0.04)
         if (imgs.length > 0) {
           poolRef.current = imgs
           setImages([...imgs])
@@ -109,6 +119,27 @@ export default function App() {
       })
       .catch(err => console.error('Failed to load shared scape:', err))
   }, [])
+
+  // ── Keyboard shortcuts (export mode only) ─────────────────────────────────
+  useEffect(() => {
+    if (mode !== 'export') return
+    function handleKey(e) {
+      if (e.code === 'Space' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault()
+        sceneRef.current?.togglePause()
+      }
+      if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ') {
+        e.preventDefault()
+        if (poolRef.current.length > 0) {
+          const last = poolRef.current[poolRef.current.length - 1]
+          URL.revokeObjectURL(last.url)
+          applyPool(poolRef.current.slice(0, -1))
+        }
+      }
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [mode])
 
   // ── Photo pool helpers ─────────────────────────────────────────────────────
   function applyPool(next) {
@@ -148,7 +179,7 @@ export default function App() {
     const res = await fetch('/api/share', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entries, settings: { theme, corners } }),
+      body: JSON.stringify({ entries, settings: { theme, corner } }),
     })
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
@@ -156,6 +187,29 @@ export default function App() {
     }
     const { id } = await res.json()
     return `${window.location.origin}/?view&s=${id}`
+  }
+
+  // ── Export video ───────────────────────────────────────────────────────────
+  async function handleExport() {
+    const scene = sceneRef.current
+    if (!scene || isExporting || images.length === 0) return
+    setIsExporting(true)
+    setExportProgress(0)
+    try {
+      const bgColor = theme === 'dark' ? '#191812' : '#F0EDE4'
+      const result = await scene.startRecording(bgColor, fps, p => setExportProgress(p))
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(result.blob)
+      a.download = `myscape.${result.ext}`
+      a.click()
+      URL.revokeObjectURL(a.href)
+    } catch (err) {
+      console.error('Export failed:', err)
+      alert(err.message || 'Export failed. Try Chrome, Firefox, or Edge.')
+    } finally {
+      setIsExporting(false)
+      setExportProgress(0)
+    }
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -180,20 +234,22 @@ export default function App() {
 
       {!VIEW_MODE && (
         <LeftPanel
-          theme={theme}     onThemeChange={setTheme}
-          corners={corners} onCornersChange={setCorners}
+          theme={theme}   onThemeChange={setTheme}
+          corner={corner} onCornerChange={setCorner}
           images={images}
           onUploadClick={() => photoInputRef.current?.click()}
           onDelete={handleDelete}
           onRotate={handleRotate}
           onShare={handleCopyLink}
+          mode={mode}     onModeChange={setMode}
         />
       )}
 
       <div className="canvas-area">
         <LandscapeCanvas
           images={images}
-          corner={corners === 'rounded' ? 0.04 : 0.0}
+          corner={corner}
+          onSceneReady={scene => { sceneRef.current = scene }}
         />
         {!VIEW_MODE && images.length === 0 && (
           <div
@@ -216,7 +272,29 @@ export default function App() {
         )}
       </div>
 
-      {!VIEW_MODE && <RightPanel theme={theme} />}
+      {!VIEW_MODE && mode === 'explore' && <RightPanel theme={theme} />}
+
+      {!VIEW_MODE && mode === 'export' && (
+        <ExportPanel
+          theme={theme}
+          fps={fps} onFpsChange={setFps}
+          corner={corner} onCornerChange={setCorner}
+          duration={exportDuration} onDurationChange={setExportDuration}
+        />
+      )}
+
+      {!VIEW_MODE && mode === 'export' && (
+        <BottomBar
+          theme={theme}
+          images={images}
+          fps={fps} onFpsChange={setFps}
+          aspectRatio={aspectRatio} onAspectChange={setAspectRatio}
+          onUploadClick={() => photoInputRef.current?.click()}
+          isExporting={isExporting}
+          exportProgress={exportProgress}
+          onExport={handleExport}
+        />
+      )}
 
     </div>
   )

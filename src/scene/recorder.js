@@ -14,7 +14,7 @@ const OFFSETS = [
   new THREE.Vector3(-6.5,  1.0, -3.5),  // left-behind
 ]
 
-export async function recordPath1(renderer, scene, particles, bgColor, onProgress) {
+export async function recordPath1(renderer, scene, particles, bgColor, fps = 30, onProgress) {
   if (!window.MediaRecorder || !renderer.domElement.captureStream) {
     throw new Error('Video recording is not supported in this browser.')
   }
@@ -61,7 +61,7 @@ export async function recordPath1(renderer, scene, particles, bgColor, onProgres
     'video/webm',
   ].find(t => MediaRecorder.isTypeSupported(t)) ?? 'video/webm'
 
-  const stream   = renderer.domElement.captureStream(30)
+  const stream   = renderer.domElement.captureStream(fps)
   const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000 })
   const chunks   = []
   recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
