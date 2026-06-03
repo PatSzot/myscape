@@ -8,7 +8,6 @@ import {
   MeshBasicMaterial,
   Mesh,
   CanvasTexture,
-  DoubleSide,
 } from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import gsap from 'gsap'
@@ -44,34 +43,10 @@ function renderNameToTexture(name) {
   return { canvas, aspect: w / h }
 }
 
-// ─── Placeholder tile ─────────────────────────────────────────────────────────
+// ─── Placeholder assets ───────────────────────────────────────────────────────
 
-function createPlaceholderTile() {
-  const size = 256
-  const canvas = document.createElement('canvas')
-  canvas.width = canvas.height = size
-  const ctx = canvas.getContext('2d')
-
-  ctx.fillStyle = '#111110'
-  ctx.fillRect(0, 0, size, size)
-  ctx.strokeStyle = 'rgba(255,255,255,0.07)'
-  ctx.lineWidth = 1
-  ctx.strokeRect(1, 1, size - 2, size - 2)
-  ctx.font = `300 ${Math.round(size * 0.42)}px "Zalando Sans SemiExpanded", sans-serif`
-  ctx.fillStyle = 'rgba(255,255,255,0.10)'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillText('M', size / 2, size / 2)
-
-  const texture = new CanvasTexture(canvas)
-  const geo = new PlaneGeometry(1, 1)
-  const mat = new MeshBasicMaterial({ map: texture, side: DoubleSide, transparent: true })
-  const mesh = new Mesh(geo, mat)
-  mesh.userData.isPlaceholder = true
-  return mesh
-}
-
-const PLACEHOLDER_COUNTS = { sphere: 16, ring: 12, helix: 14, rotatingImages: 9 }
+const PLACEHOLDER_LETTERS = ['M', 'Y', 'S', 'C', 'A', 'P', 'E']
+const PLACEHOLDER_COUNTS  = { sphere: 16, ring: 12, helix: 14, rotatingImages: 9 }
 
 // ─── Scene factory ─────────────────────────────────────────────────────────────
 
@@ -139,10 +114,15 @@ export function createScapeScene(canvas) {
     nameMesh = null
   }
 
-  function spawnPlaceholders(presetId, isRotating) {
+  async function spawnPlaceholders(presetId, isRotating) {
     const n = PLACEHOLDER_COUNTS[presetId] ?? 0
-    for (let i = 0; i < n; i++) {
-      const mesh = createPlaceholderTile()
+    if (n === 0) return
+    const urls = Array.from({ length: n }, (_, i) => `/${PLACEHOLDER_LETTERS[i % PLACEHOLDER_LETTERS.length]}.jpg`)
+    const newMeshes = await Promise.all(
+      urls.map(url => isRotating ? createSquarePhotoPlane(url) : createPhotoPlane(url, 1))
+    )
+    for (const mesh of newMeshes) {
+      mesh.userData.isPlaceholder = true
       isRotating ? fanGroup.add(mesh) : formationGroup.add(mesh)
       meshes.push(mesh)
     }
@@ -170,7 +150,7 @@ export function createScapeScene(canvas) {
     const isRotating = currentPresetId === 'rotatingImages'
 
     if (currentUrls.length === 0) {
-      spawnPlaceholders(currentPresetId, isRotating)
+      await spawnPlaceholders(currentPresetId, isRotating)
       applyLayout()
       return
     }
@@ -212,7 +192,7 @@ export function createScapeScene(canvas) {
     if (currentUrls.length === 0) {
       for (const mesh of meshes) disposePhotoPlane(mesh)
       meshes = []
-      spawnPlaceholders(presetId, isRotating)
+      await spawnPlaceholders(presetId, isRotating)
       applyLayout()
       return
     }
