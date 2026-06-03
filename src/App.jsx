@@ -210,7 +210,6 @@ export default function App() {
           userSelect: 'none',
           zIndex: 0,
           whiteSpace: 'nowrap',
-          textTransform: 'uppercase',
         }}>
           {scapeName}
         </div>
