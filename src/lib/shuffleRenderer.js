@@ -43,8 +43,8 @@ function drawStack(ctx, imgs, W, H, cx, stackClock, cornerFraction) {
     const img = imgs[idx]
     if (!img) continue
 
-    // Rest geometry (start of cycle)
-    const restY   = cy - DEPTH_Y_OFFSETS[d] * cardSize
+    // Rest geometry (start of cycle) — deeper cards stack below the front card
+    const restY   = cy + DEPTH_Y_OFFSETS[d] * cardSize
     const restSc  = DEPTH_SCALES[d]
     const restAlp = DEPTH_OPACITIES[d]
 
@@ -59,12 +59,11 @@ function drawStack(ctx, imgs, W, H, cx, stackClock, cornerFraction) {
       const ea = easeIn(et)
       yCenter  = cy - H * 0.96 * ea
       rot      = (10 * Math.PI / 180) * ea
-      alpha    = 1 - ea
     } else if (d > 0 && t > ADV_START) {
-      // Rear cards advance toward front
+      // Rear cards advance upward toward front
       const at  = clamp((t - ADV_START) / (1 - ADV_START), 0, 1)
       const aa  = easeOut(at)
-      const tY  = cy - DEPTH_Y_OFFSETS[d - 1] * cardSize
+      const tY  = cy + DEPTH_Y_OFFSETS[d - 1] * cardSize
       const tSc = DEPTH_SCALES[d - 1]
       const tAl = DEPTH_OPACITIES[d - 1]
       yCenter   = lerp(restY, tY, aa)
@@ -117,14 +116,15 @@ function renderAt(target, imgs, clock, cornerFraction, bgColor) {
 }
 
 export function createShuffleRenderer(canvas, options = {}) {
-  let { images = [], cornerFraction = 0, speed = 2.0 } = options
+  let { images = [], cornerFraction = 0, speed = 1.5 } = options
 
   let clock  = 0
   let paused = false
   let rafId  = null
   let lastTs = null
 
-  function clockRate() { return speed / Math.max(1, images.length) }
+  // speed = cycles per second, independent of image count
+  function clockRate() { return speed }
 
   function tick(ts) {
     if (!paused) {
