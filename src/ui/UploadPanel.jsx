@@ -4,6 +4,7 @@ import ExportPanel from '../export/ExportPanel.jsx'
 import { PRESETS } from '../lib/presets.js'
 import ScapeCanvas from '../components/ScapeCanvas.jsx'
 import AnimationControls from '../components/AnimationControls.jsx'
+import { exportVideo } from '../lib/exporter.js'
 
 const MAX_PER_PICK = 100
 const MONO     = '"IBM Plex Mono", monospace'
@@ -16,7 +17,8 @@ export default function UploadPanel({
   onCopyLink,
   scapeName, onScapeNameChange,
 }) {
-  const photoInputRef = useRef(null)
+  const photoInputRef  = useRef(null)
+  const scapeCanvasRef = useRef(null)
   const [isEditing,    setIsEditing]    = useState(false)
   const [showTheme,    setShowTheme]    = useState(false)
   const [showAnimate,  setShowAnimate]  = useState(false)
@@ -40,6 +42,19 @@ export default function UploadPanel({
     if (!files.length) return
     onLoad(files)
     e.target.value = ''
+  }
+
+  async function handleExport({ canvasSize, durationSeconds, onProgress }) {
+    const scene = scapeCanvasRef.current?.getScene()
+    if (!scene) throw new Error('Scene not ready')
+    await exportVideo({
+      sceneController: scene,
+      scapeName,
+      durationSeconds,
+      canvasSize,
+      presetId: animPreset,
+      onProgress,
+    })
   }
 
   const pct = progress ? Math.round((progress.done / progress.total) * 100) : 0
@@ -235,9 +250,11 @@ export default function UploadPanel({
                 {/* Live 3-D preview canvas */}
                 <div style={{ height: 280, position: 'relative', background: isDark ? '#191812' : '#F5F3EC' }}>
                   <ScapeCanvas
+                    ref={scapeCanvasRef}
                     photos={images.map(img => img.url)}
                     presetId={animPreset}
                     controls={animControls}
+                    scapeName={scapeName}
                   />
                 </div>
 
@@ -324,7 +341,12 @@ export default function UploadPanel({
                 )}
 
                 <div style={{ ...s.dividerH, background: dividerColor }} />
-                <ExportPanel images={images} theme={theme} corners={corners} />
+                <ExportPanel
+                  theme={theme}
+                  presetId={animPreset}
+                  hasPhotos={images.length > 0}
+                  onExport={handleExport}
+                />
               </>)}
 
             </>)}

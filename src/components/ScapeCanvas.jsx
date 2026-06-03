@@ -1,10 +1,15 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import { createScapeScene } from '../lib/scapeScene.js'
 
-export default function ScapeCanvas({ photos, presetId, controls, style }) {
+const ScapeCanvas = forwardRef(function ScapeCanvas({ photos, presetId, controls, scapeName }, ref) {
   const canvasRef     = useRef(null)
   const sceneRef      = useRef(null)
   const prevPresetRef = useRef(null)
+
+  // Expose scene controller to parent via ref
+  useImperativeHandle(ref, () => ({
+    getScene: () => sceneRef.current,
+  }), [])
 
   // ── Mount: create scene + start RAF loop ──────────────────────────────────
   useEffect(() => {
@@ -12,20 +17,17 @@ export default function ScapeCanvas({ photos, presetId, controls, style }) {
     const scene  = createScapeScene(canvas)
     sceneRef.current = scene
 
-    // Initial size from container
     const container = canvas.parentElement
     if (container) {
       scene.resize(container.offsetWidth || 400, container.offsetHeight || 280)
     }
 
-    // Resize observer
     const ro = new ResizeObserver(entries => {
       const { width, height } = entries[0].contentRect
       sceneRef.current?.resize(width, height)
     })
     if (container) ro.observe(container)
 
-    // RAF loop
     const raf = { id: null }
     const loop = ts => {
       scene.tick(ts)
@@ -58,10 +60,17 @@ export default function ScapeCanvas({ photos, presetId, controls, style }) {
     }
   }, [presetId, controls])
 
+  // ── Scape name overlay ────────────────────────────────────────────────────
+  useEffect(() => {
+    sceneRef.current?.setScapeName(scapeName || '')
+  }, [scapeName])
+
   return (
     <canvas
       ref={canvasRef}
-      style={{ display: 'block', width: '100%', height: '100%', ...style }}
+      style={{ display: 'block', width: '100%', height: '100%' }}
     />
   )
-}
+})
+
+export default ScapeCanvas

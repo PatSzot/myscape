@@ -130,15 +130,16 @@ const FLOW = {
 
   getCameraState(t, controls) {
     const { zoom, radius } = controls
+    // Integer frequency multiples guarantee getCameraState(0) === getCameraState(1) (seamless loop)
     const position = new Vector3(
-      Math.sin(t * Math.PI * 2 * 1.0) * zoom * radius,
-      Math.sin(t * Math.PI * 2 * 0.7) * zoom * radius * 0.4,
-      Math.cos(t * Math.PI * 2 * 1.3) * zoom * radius
+      Math.sin(t * Math.PI * 2 * 2) * zoom * radius,       // 2 full cycles
+      Math.sin(t * Math.PI * 2 * 1) * zoom * radius * 0.4, // 1 full cycle
+      Math.cos(t * Math.PI * 2 * 3) * zoom * radius        // 3 full cycles
     )
     const target = new Vector3(
-      Math.sin(t * Math.PI * 2 * 0.3) * radius * 0.5,
+      Math.sin(t * Math.PI * 2) * radius * 0.5,
       0,
-      Math.cos(t * Math.PI * 2 * 0.3) * radius * 0.5
+      Math.cos(t * Math.PI * 2) * radius * 0.5
     )
     return { position, target }
   },
