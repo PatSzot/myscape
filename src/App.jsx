@@ -260,6 +260,8 @@ export default function App() {
               presetId={presetId}
               controls={controls}
               scapeName={scapeName}
+              corner={corners === 'rounded' ? 0.04 : 0}
+              theme={theme}
             />
           </div>
         )}

@@ -115,57 +115,7 @@ const EXPLORE = {
 
 }
 
-// ─── Rotating Images (fan/wheel) ──────────────────────────────────────────────
-
-function getSpreadDegrees(n) {
-  if (n <= 1) return 0
-  if (n <= 12) return (n - 1) * 40
-  return Math.min(320 + (n - 12) * 3, 355)
-}
-
-const ROTATING_IMAGES = {
-  id: 'rotatingImages',
-  label: 'ROTATING IMAGES',
-  defaults: { count: null, zoom: 1.0, radius: 2.2, scale: 0.9, speed: 1.0 },
-
-  layoutPhotos(meshes, controls, canvasWidth = 1080, canvasHeight = 1080) {
-    const N = meshes.length
-    if (N === 0) return
-
-    const referenceSize = Math.min(canvasWidth, canvasHeight)
-    const canvasScale   = referenceSize / 1080
-
-    const baseCardSize  = controls.scale * canvasScale
-    const cardSize      = Math.max(baseCardSize * (9 / Math.max(N, 9)), baseCardSize * 0.25)
-
-    const spreadDegrees    = getSpreadDegrees(N)
-    const spreadRadians    = (spreadDegrees * Math.PI) / 180
-    const targetArcSpacing = cardSize * 1.15
-    const minRadius        = controls.radius * canvasScale
-    const dynamicRadius    = N <= 1
-      ? minRadius
-      : Math.max(minRadius, (targetArcSpacing * (N - 1)) / Math.max(spreadRadians, 0.01))
-
-    meshes.forEach((mesh, i) => {
-      const angleDeg = N === 1 ? 0 : -spreadDegrees / 2 + (i / (N - 1)) * spreadDegrees
-      const angleRad = (angleDeg * Math.PI) / 180
-      mesh.position.set(
-        Math.sin(angleRad) * dynamicRadius,
-        Math.cos(angleRad) * dynamicRadius * -1,
-        0
-      )
-      mesh.rotation.set(0, 0, 0)
-      mesh.userData.fanAngle = angleDeg
-      mesh.userData.fanIndex = i
-      mesh.userData.fanTotal = N
-      mesh.scale.setScalar(cardSize)
-      mesh.visible = true
-    })
-  },
-
-}
-
 // ─── Exports ──────────────────────────────────────────────────────────────────
 
-export const PRESETS = { sphere: SPHERE, ring: RING, helix: HELIX, flow: FLOW, explore: EXPLORE, rotatingImages: ROTATING_IMAGES }
-export const PRESET_IDS = ['sphere', 'ring', 'helix', 'flow', 'explore', 'rotatingImages']
+export const PRESETS = { sphere: SPHERE, ring: RING, helix: HELIX, flow: FLOW, explore: EXPLORE }
+export const PRESET_IDS = ['sphere', 'ring', 'helix', 'flow', 'explore']

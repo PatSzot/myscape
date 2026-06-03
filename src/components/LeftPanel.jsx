@@ -69,16 +69,7 @@ export default function LeftPanel({
   const accent    = text
   const toggleOff = isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)'
 
-  const isLandscape      = presetId === 'landscape'
-  const isRotatingImages = presetId === 'rotatingImages'
-
-  const activeSliders = isRotatingImages
-    ? [
-        { label: 'MIN SPREAD', key: 'radius', min: 0.5, max: 5.0, step: 0.05 },
-        { label: 'CARD SIZE',  key: 'scale',  min: 0.3, max: 2.0, step: 0.05 },
-        { label: 'SPEED',      key: 'speed',  min: 0.1, max: 3.0, step: 0.05 },
-      ]
-    : SLIDERS
+  const isLandscape = presetId === 'landscape'
   const canShare    = images.length > 0 && !copying
 
   async function handleShare() {
@@ -214,7 +205,7 @@ export default function LeftPanel({
         <section style={{ margin: '16px 0' }}>
           <Label>Organize</Label>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {['landscape', 'sphere', 'ring', 'helix', 'rotatingImages'].map(id => (
+            {['landscape', 'sphere', 'ring', 'helix'].map(id => (
             <PresetBtn
               key={id}
               id={id}
@@ -233,7 +224,7 @@ export default function LeftPanel({
         {!isLandscape && (
           <section style={{ margin: '16px 0' }}>
             <Label>Composition</Label>
-            {activeSliders.map(({ label, key, min, max, step }) => (
+            {SLIDERS.map(({ label, key, min, max, step }) => (
               <div key={key} style={{ marginBottom: 11 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                   <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.08em', color: muted, textTransform: 'uppercase' }}>{label}</span>
@@ -245,11 +236,6 @@ export default function LeftPanel({
                 />
               </div>
             ))}
-            {isRotatingImages && (
-              <div style={{ fontFamily: MONO, fontSize: 9, color: muted, letterSpacing: '0.06em', marginTop: 6 }}>
-                {images.length} PHOTO{images.length !== 1 ? 'S' : ''} LOADED
-              </div>
-            )}
             <div style={{ fontFamily: MONO, fontSize: 9, color: muted, letterSpacing: '0.06em', marginTop: 10, opacity: 0.7 }}>
               Scroll to zoom · Drag to orbit
             </div>

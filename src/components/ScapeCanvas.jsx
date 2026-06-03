@@ -1,7 +1,7 @@
 import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import { createScapeScene } from '../lib/scapeScene.js'
 
-const ScapeCanvas = forwardRef(function ScapeCanvas({ photos, presetId, controls, scapeName }, ref) {
+const ScapeCanvas = forwardRef(function ScapeCanvas({ photos, presetId, controls, scapeName, corner, theme }, ref) {
   const canvasRef     = useRef(null)
   const sceneRef      = useRef(null)
   const prevPresetRef = useRef(null)
@@ -60,10 +60,15 @@ const ScapeCanvas = forwardRef(function ScapeCanvas({ photos, presetId, controls
     }
   }, [presetId, controls])
 
-  // ── Scape name overlay ────────────────────────────────────────────────────
+  // ── Corner radius changed ─────────────────────────────────────────────────
   useEffect(() => {
-    sceneRef.current?.setScapeName(scapeName || '')
-  }, [scapeName])
+    sceneRef.current?.setCorner(corner ?? 0)
+  }, [corner])
+
+  // ── Scape name / theme changed ────────────────────────────────────────────
+  useEffect(() => {
+    sceneRef.current?.setScapeName(scapeName || '', theme)
+  }, [scapeName, theme])
 
   return (
     <canvas
