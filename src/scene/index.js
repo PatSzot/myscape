@@ -177,7 +177,7 @@ export async function initScene(container) {
     if (!asset) continue
 
     const { tex, aspect } = asset
-    const base = 2.2
+    const base = 1.1
 
     const mat = new THREE.ShaderMaterial({
       vertexShader: VERT, fragmentShader: FRAG,
@@ -235,7 +235,7 @@ export async function initScene(container) {
     const tx   = (Math.random() - 0.5) * r * 2
     const ty   = (Math.random() - 0.5) * r
     const tz   = (Math.random() - 0.5) * r * 1.5
-    const base = 2.0 + Math.random() * 0.4
+    const base = 1.0 + Math.random() * 0.2
     const placeholder = assets[Math.floor(Math.random() * assets.length)]
 
     const mat = new THREE.ShaderMaterial({

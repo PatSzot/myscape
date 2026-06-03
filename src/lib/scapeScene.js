@@ -187,7 +187,7 @@ export function createScapeScene(canvas) {
     nameMesh = new Mesh(geo, mat)
     nameMesh.renderOrder = 999
     // Position bottom-center in camera space, 2 units ahead
-    nameMesh.position.set(0, -0.28, -2)
+    nameMesh.position.set(0, 0, -2)
 
     camera.add(nameMesh)
   }
