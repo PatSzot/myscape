@@ -113,13 +113,11 @@ function renderAt(target, imgs, clock, cornerFraction, bgColor) {
     ctx.fillStyle = bgColor
     ctx.fillRect(0, 0, W, H)
   }
-  // Right stack is 0.25 cycles behind left (exits 0.25 cycles later)
-  drawStack(ctx, imgs, W, H, W * 0.25, clock,        cornerFraction)
-  drawStack(ctx, imgs, W, H, W * 0.75, clock + 0.75, cornerFraction)
+  drawStack(ctx, imgs, W, H, W * 0.50, clock, cornerFraction)
 }
 
 export function createShuffleRenderer(canvas, options = {}) {
-  let { images = [], cornerFraction = 0, speed = 1.0 } = options
+  let { images = [], cornerFraction = 0, speed = 2.0 } = options
 
   let clock  = 0
   let paused = false

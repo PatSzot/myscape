@@ -104,7 +104,7 @@ export default function App() {
   const [loopS,        setLoopS]        = useState(8.0)
   const [presetId,     setPresetId]     = useState('sphere')
   const [exportControls, setExportControls] = useState({
-    count: 7, zoom: 1.0, radius: 1.0, scale: 1.0, corners: 0.08, speed: 1.0,
+    count: 7, zoom: 1.0, radius: 1.0, scale: 1.0, corners: 0.08, speed: 2.0,
   })
   const [isExporting,    setIsExporting]    = useState(false)
   const [exportPct,      setExportPct]      = useState(0)
