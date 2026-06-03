@@ -1,6 +1,9 @@
 import { useRef, useState, useEffect } from 'react'
 import 'remixicon/fonts/remixicon.css'
 import ExportPanel from '../export/ExportPanel.jsx'
+import { PRESETS } from '../lib/presets.js'
+import ScapeCanvas from '../components/ScapeCanvas.jsx'
+import AnimationControls from '../components/AnimationControls.jsx'
 
 const MAX_PER_PICK = 100
 const MONO     = '"IBM Plex Mono", monospace'
@@ -17,6 +20,8 @@ export default function UploadPanel({
   const [isEditing,    setIsEditing]    = useState(false)
   const [showTheme,    setShowTheme]    = useState(false)
   const [showAnimate,  setShowAnimate]  = useState(false)
+  const [animPreset,   setAnimPreset]   = useState('sphere')
+  const [animControls, setAnimControls] = useState(PRESETS['sphere'].defaults)
   const [copied,       setCopied]       = useState(false)
   const [copying,      setCopying]      = useState(false)
   const [shareUrl,     setShareUrl]     = useState(null)
@@ -130,7 +135,7 @@ export default function UploadPanel({
 
         {/* ── Controls card ────────────────────────────────────────────────── */}
         {!isLoading && (
-          <div style={{ ...s.card, ...glass }}>
+          <div style={{ ...s.card, ...glass, overflowY: 'auto', maxHeight: 'calc(100vh - 80px)', WebkitOverflowScrolling: 'touch' }}>
 
             {/* Controls accordion header */}
             <button style={s.mainBtn} onClick={() => setShowTheme(v => !v)}>
@@ -225,6 +230,29 @@ export default function UploadPanel({
               </button>
 
               {showAnimate && (<>
+                <div style={{ ...s.dividerH, background: dividerColor }} />
+
+                {/* Live 3-D preview canvas */}
+                <div style={{ height: 280, position: 'relative', background: isDark ? '#191812' : '#F5F3EC' }}>
+                  <ScapeCanvas
+                    photos={images.map(img => img.url)}
+                    presetId={animPreset}
+                    controls={animControls}
+                  />
+                </div>
+
+                {/* Preset selector + sliders */}
+                <AnimationControls
+                  presetId={animPreset}
+                  controls={animControls}
+                  theme={theme}
+                  onPresetChange={id => {
+                    setAnimPreset(id)
+                    setAnimControls(PRESETS[id].defaults)
+                  }}
+                  onControlsChange={setAnimControls}
+                />
+
                 <div style={{ ...s.dividerH, background: dividerColor }} />
 
                 {/* Copy shareable link */}
