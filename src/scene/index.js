@@ -1,7 +1,6 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import gsap from 'gsap'
-import { recordPath1 } from './recorder.js'
 
 // ─── Shaders ──────────────────────────────────────────────────────────────────
 
@@ -349,19 +348,24 @@ export async function initScene(container) {
         mesh.material.uniforms.uSizeY.value = asset.aspect >= 1 ? base / asset.aspect : base
       })
     },
-    getCanvas() { return renderer.domElement },
-    getSize() { return { width: renderer.domElement.width, height: renderer.domElement.height } },
-    pauseLoop()   { paused = true  },
-    resumeLoop()  { paused = false },
-    togglePause() { paused = !paused },
-    setBgColor(hex) { renderer.setClearColor(hex, 1) },
-    async startRecording(bgColor, fps = 30, onProgress) {
-      paused = true
-      try {
-        return await recordPath1(renderer, scene, particles, bgColor, fps, onProgress)
-      } finally {
-        paused = false
-      }
+    getCanvas()       { return renderer.domElement },
+    getSize()         { return { width: renderer.domElement.width, height: renderer.domElement.height } },
+    getContainerSize(){ return { width: container.offsetWidth, height: container.offsetHeight } },
+    getPixelRatio()   { return renderer.getPixelRatio() },
+    setPixelRatio(n)  { renderer.setPixelRatio(n) },
+    pauseLoop()       { paused = true  },
+    resumeLoop()      { paused = false },
+    togglePause()     { paused = !paused },
+    setBgColor(hex)   { try { renderer.setClearColor(new THREE.Color(hex), 1) } catch(e) {} },
+    restoreBgColor()  { renderer.setClearColor(0x000000, 0) },
+    resize(w, h) {
+      camera.aspect = w / h
+      camera.updateProjectionMatrix()
+      renderer.setSize(w, h, false)
+    },
+    renderFrame() {
+      controls.update()
+      renderer.render(scene, camera)
     },
     cleanup() {
       cancelAnimationFrame(rafId)

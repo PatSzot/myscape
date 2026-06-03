@@ -3,9 +3,11 @@ import exifr from 'exifr'
 import LandscapeCanvas from './components/LandscapeCanvas.jsx'
 import LeftPanel from './components/LeftPanel.jsx'
 import RightPanel from './components/RightPanel.jsx'
-import ExportPanel from './export/ExportPanel.jsx'
-import BottomBar from './components/BottomBar.jsx'
+import ExportDock, { FORMATS } from './components/ExportDock.jsx'
+import ImageModal from './components/ImageModal.jsx'
+import { exportVideo } from './lib/exporter.js'
 import './styles/layout.css'
+import './styles/export.css'
 
 // ─── EXIF helper ──────────────────────────────────────────────────────────────
 
@@ -15,12 +17,10 @@ async function readMeta(file) {
       pick: ['DateTimeOriginal', 'CreateDate', 'GPSLatitude', 'GPSLongitude'],
     })
     if (!data) return {}
-
     const dt   = data.DateTimeOriginal || data.CreateDate
     const date = dt instanceof Date
       ? dt.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
       : null
-
     let location = null
     if (data.GPSLatitude != null && data.GPSLongitude != null) {
       const lat    = data.GPSLatitude
@@ -29,7 +29,6 @@ async function readMeta(file) {
       const lonDir = lon >= 0 ? 'E' : 'W'
       location = `${Math.abs(lat).toFixed(4)}° ${latDir}  ${Math.abs(lon).toFixed(4)}° ${lonDir}`
     }
-
     return { date, location }
   } catch {
     return {}
@@ -88,15 +87,26 @@ export default function App() {
   const poolRef       = useRef([])
   const sceneRef      = useRef(null)
 
-  const [images,         setImages]         = useState([])
-  const [theme,          setTheme]          = useState('dark')
-  const [corner,         setCorner]         = useState(0.0)
-  const [mode,           setMode]           = useState('explore')
-  const [fps,            setFps]            = useState(30)
-  const [aspectRatio,    setAspectRatio]    = useState('16:9')
+  // Core state
+  const [images,  setImages]  = useState([])
+  const [theme,   setTheme]   = useState('dark')
+  const [corner,  setCorner]  = useState(0.0)
+
+  // Mode
+  const [mode, setMode] = useState('explore')
+
+  // Export state
+  const [bgColor,      setBgColor]      = useState('#0d0d0d')
+  const [exportFormat, setExportFormat] = useState('square')
+  const [fps,          setFps]          = useState(30)
+  const [loopS,        setLoopS]        = useState(8.0)
+  const [presetId,     setPresetId]     = useState('sphere')
+  const [exportControls, setExportControls] = useState({
+    count: 7, zoom: 1.0, radius: 1.0, scale: 1.0, corners: 0.08,
+  })
   const [isExporting,    setIsExporting]    = useState(false)
-  const [exportProgress, setExportProgress] = useState(0)
-  const [exportDuration, setExportDuration] = useState(15)
+  const [exportPct,      setExportPct]      = useState(0)
+  const [imageModalOpen, setImageModalOpen] = useState(false)
 
   // ── Body background ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -123,12 +133,14 @@ export default function App() {
   // ── Keyboard shortcuts (export mode only) ─────────────────────────────────
   useEffect(() => {
     if (mode !== 'export') return
-    function handleKey(e) {
-      if (e.code === 'Space' && !e.ctrlKey && !e.metaKey) {
+    function onKey(e) {
+      const tag = e.target?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) return
+      if (e.code === 'Space') {
         e.preventDefault()
         sceneRef.current?.togglePause()
       }
-      if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ') {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
         e.preventDefault()
         if (poolRef.current.length > 0) {
           const last = poolRef.current[poolRef.current.length - 1]
@@ -137,8 +149,8 @@ export default function App() {
         }
       }
     }
-    document.addEventListener('keydown', handleKey)
-    return () => document.removeEventListener('keydown', handleKey)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [mode])
 
   // ── Photo pool helpers ─────────────────────────────────────────────────────
@@ -194,26 +206,28 @@ export default function App() {
     const scene = sceneRef.current
     if (!scene || isExporting || images.length === 0) return
     setIsExporting(true)
-    setExportProgress(0)
+    setExportPct(0)
     try {
-      const bgColor = theme === 'dark' ? '#191812' : '#F0EDE4'
-      const result = await scene.startRecording(bgColor, fps, p => setExportProgress(p))
-      const a = document.createElement('a')
-      a.href = URL.createObjectURL(result.blob)
-      a.download = `myscape.${result.ext}`
-      a.click()
-      URL.revokeObjectURL(a.href)
+      await exportVideo({
+        scene,
+        fps,
+        loopS,
+        format: FORMATS[exportFormat].export,
+        bgColor,
+        onProgress: p => setExportPct(p),
+      })
     } catch (err) {
       console.error('Export failed:', err)
-      alert(err.message || 'Export failed. Try Chrome, Firefox, or Edge.')
+      alert(err.message || 'Export failed. Try Chrome 94+, Edge 94+, or Firefox 130+.')
     } finally {
       setIsExporting(false)
-      setExportProgress(0)
+      setExportPct(0)
     }
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
   const panelBg = theme === 'dark' ? '#191812' : '#F0EDE4'
+  const isExport = mode === 'export'
 
   return (
     <div className={`app-layout${VIEW_MODE ? ' view-mode' : ''}`}
@@ -242,6 +256,10 @@ export default function App() {
           onRotate={handleRotate}
           onShare={handleCopyLink}
           mode={mode}     onModeChange={setMode}
+          presetId={presetId}       onPresetChange={setPresetId}
+          bgColor={bgColor}         onBgChange={setBgColor}
+          exportControls={exportControls} onExportControlsChange={setExportControls}
+          loopS={loopS}             onLoopChange={setLoopS}
         />
       )}
 
@@ -272,28 +290,45 @@ export default function App() {
         )}
       </div>
 
-      {!VIEW_MODE && mode === 'explore' && <RightPanel theme={theme} />}
+      {!VIEW_MODE && !isExport && <RightPanel theme={theme} />}
 
-      {!VIEW_MODE && mode === 'export' && (
-        <ExportPanel
-          theme={theme}
-          fps={fps} onFpsChange={setFps}
-          corner={corner} onCornerChange={setCorner}
-          duration={exportDuration} onDurationChange={setExportDuration}
-        />
-      )}
+      {!VIEW_MODE && isExport && (
+        <>
+          {/* Keyboard hints */}
+          <div className="kb-overlay" aria-hidden="true">
+            <span className="kb-shortcut">
+              <kbd>CTRL</kbd><kbd>Z</kbd>
+              <span className="kb-label">Undo</span>
+            </span>
+            <span className="kb-dot" />
+            <span className="kb-shortcut">
+              <kbd>SPACE</kbd>
+              <span className="kb-label">Preview</span>
+            </span>
+          </div>
 
-      {!VIEW_MODE && mode === 'export' && (
-        <BottomBar
-          theme={theme}
-          images={images}
-          fps={fps} onFpsChange={setFps}
-          aspectRatio={aspectRatio} onAspectChange={setAspectRatio}
-          onUploadClick={() => photoInputRef.current?.click()}
-          isExporting={isExporting}
-          exportProgress={exportProgress}
-          onExport={handleExport}
-        />
+          {/* Export Dock */}
+          <ExportDock
+            images={images}
+            format={exportFormat} onFormatChange={setExportFormat}
+            fps={fps}             onFpsChange={setFps}
+            isExporting={isExporting}
+            exportPct={exportPct}
+            onExport={handleExport}
+            onImagePreviewOpen={() => setImageModalOpen(true)}
+            onUploadClick={() => photoInputRef.current?.click()}
+          />
+
+          {/* Image Modal */}
+          {imageModalOpen && (
+            <ImageModal
+              images={images}
+              onClose={() => setImageModalOpen(false)}
+              onDelete={handleDelete}
+              onUploadClick={() => photoInputRef.current?.click()}
+            />
+          )}
+        </>
       )}
 
     </div>
