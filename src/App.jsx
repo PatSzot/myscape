@@ -4,11 +4,13 @@ import LandscapeCanvas from './components/LandscapeCanvas.jsx'
 import ShuffleCanvas from './components/ShuffleCanvas.jsx'
 import MainStageCanvas from './components/MainStageCanvas.jsx'
 import SpiralCanvas from './components/SpiralCanvas.jsx'
+import ScapeCanvas from './components/ScapeCanvas.jsx'
 import LeftPanel from './components/LeftPanel.jsx'
 import RightPanel from './components/RightPanel.jsx'
 import ExportDock, { FORMATS } from './components/ExportDock.jsx'
 import ImageModal from './components/ImageModal.jsx'
 import { exportVideo } from './lib/exporter.js'
+import { PRESET_IDS, PRESET_DEFAULTS } from './lib/presets.js'
 import './styles/layout.css'
 import './styles/export.css'
 
@@ -95,6 +97,7 @@ export default function App() {
   const shuffleCanvasRef   = useRef(null)
   const mainStageCanvasRef = useRef(null)
   const spiralCanvasRef    = useRef(null)
+  const scapeCanvasRef     = useRef(null)
   const canvasAreaRef    = useRef(null)
 
   // Core state
@@ -111,9 +114,7 @@ export default function App() {
   const [fps,          setFps]          = useState(30)
   const [loopS,        setLoopS]        = useState(8.0)
   const [presetId,     setPresetId]     = useState('sphere')
-  const [exportControls, setExportControls] = useState({
-    count: 7, zoom: 1.0, radius: 1.0, scale: 1.0, corners: 0.08, speed: 1.5,
-  })
+  const [exportControls, setExportControls] = useState(PRESET_DEFAULTS['sphere'])
   const [isExporting,    setIsExporting]    = useState(false)
   const [exportPct,      setExportPct]      = useState(0)
   const [imageModalOpen, setImageModalOpen] = useState(false)
@@ -171,10 +172,11 @@ export default function App() {
       if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) return
       if (e.code === 'Space') {
         e.preventDefault()
-        if      (presetId === 'spiral')    spiralCanvasRef.current?.togglePause()
-        else if (presetId === 'mainStage') mainStageCanvasRef.current?.togglePause()
-        else if (presetId === 'shuffle')   shuffleCanvasRef.current?.togglePause()
-        else                               sceneRef.current?.togglePause()
+        if      (presetId === 'spiral')             spiralCanvasRef.current?.togglePause()
+        else if (presetId === 'mainStage')          mainStageCanvasRef.current?.togglePause()
+        else if (presetId === 'shuffle')            shuffleCanvasRef.current?.togglePause()
+        else if (PRESET_IDS.includes(presetId))     scapeCanvasRef.current?.togglePause()
+        else                                        sceneRef.current?.togglePause()
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
         e.preventDefault()
@@ -237,23 +239,31 @@ export default function App() {
     return `${window.location.origin}/?view&s=${id}`
   }
 
+  // ── Preset switch — reset controls to per-preset defaults ─────────────────
+  function handlePresetChange(id) {
+    setPresetId(id)
+    if (PRESET_DEFAULTS[id]) setExportControls(PRESET_DEFAULTS[id])
+  }
+
   // ── Export video ───────────────────────────────────────────────────────────
   async function handleExport() {
     if (isExporting || images.length === 0) return
     const isShuffle      = presetId === 'shuffle'
     const isMainStage    = presetId === 'mainStage'
     const isSpiral       = presetId === 'spiral'
+    const is3DPreset     = PRESET_IDS.includes(presetId)
     const is2D           = isShuffle || isMainStage || isSpiral
-    const scene              = !is2D       ? sceneRef.current                           : null
+    const scapeScene         = is3DPreset  ? scapeCanvasRef.current?.getScene()         : null
     const shuffleRenderer    = isShuffle   ? shuffleCanvasRef.current?.getRenderer()   : null
     const mainStageRenderer  = isMainStage ? mainStageCanvasRef.current?.getRenderer() : null
     const spiralRenderer     = isSpiral    ? spiralCanvasRef.current?.getRenderer()    : null
-    if (!scene && !shuffleRenderer && !mainStageRenderer && !spiralRenderer) return
+    if (!scapeScene && !shuffleRenderer && !mainStageRenderer && !spiralRenderer) return
     setIsExporting(true)
     setExportPct(0)
     try {
       await exportVideo({
-        scene,
+        scapeScene,
+        scene: null,
         shuffleRenderer,
         mainStageRenderer,
         spiralRenderer,
@@ -278,6 +288,7 @@ export default function App() {
   const showShuffle   = isExport && presetId === 'shuffle'
   const showMainStage = isExport && presetId === 'mainStage'
   const showSpiral    = isExport && presetId === 'spiral'
+  const showScape     = isExport && PRESET_IDS.includes(presetId)
   // In export mode, fall back to the MYSCAPE letter photos when no user photos are loaded
   const exportImages = images.length > 0 ? images : DEFAULT_EXPORT_IMAGES
 
@@ -308,7 +319,7 @@ export default function App() {
           onRotate={handleRotate}
           onShare={handleCopyLink}
           mode={mode}     onModeChange={setMode}
-          presetId={presetId}       onPresetChange={setPresetId}
+          presetId={presetId}       onPresetChange={handlePresetChange}
           bgColor={bgColor}         onBgChange={setBgColor}
           exportControls={exportControls} onExportControlsChange={setExportControls}
           loopS={loopS}             onLoopChange={setLoopS}
@@ -325,13 +336,25 @@ export default function App() {
             : { position: 'absolute', inset: 0 }
           }
         >
-          <div style={{ position: 'absolute', inset: 0, display: (showShuffle || showMainStage || showSpiral) ? 'none' : 'block' }}>
+          <div style={{ position: 'absolute', inset: 0, display: (showShuffle || showMainStage || showSpiral || showScape) ? 'none' : 'block' }}>
             <LandscapeCanvas
               images={isExport ? exportImages : images}
               corner={corner}
               onSceneReady={scene => { sceneRef.current = scene }}
             />
           </div>
+          {showScape && (
+            <div style={{ position: 'absolute', inset: 0 }}>
+              <ScapeCanvas
+                ref={scapeCanvasRef}
+                photos={exportImages}
+                bgColor={bgColor}
+                presetId={presetId}
+                controls={exportControls}
+                loopS={loopS}
+              />
+            </div>
+          )}
           {showShuffle && (
             <div style={{ position: 'absolute', inset: 0 }}>
               <ShuffleCanvas

@@ -117,16 +117,14 @@ export default function ExportPanel({
         {!isMainStage && !isSpiral && (
           <NumberField label="Corners" value={controls.corners} min={0} max={0.5} step={0.01} onChange={v => setCtrl('corners', v)} />
         )}
-        {is2D && (
-          <NumberField
-            label="Speed"
-            value={controls.speed}
-            min={0.1}
-            max={isMainStage ? 3.0 : 3.0}
-            step={isMainStage ? 0.05 : 0.05}
-            onChange={v => setCtrl('speed', v)}
-          />
-        )}
+        <NumberField
+          label="Speed"
+          value={controls.speed}
+          min={0.1}
+          max={3.0}
+          step={0.05}
+          onChange={v => setCtrl('speed', v)}
+        />
       </div>
 
       {/* Video Length */}
