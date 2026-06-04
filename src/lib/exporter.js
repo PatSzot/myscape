@@ -2,16 +2,21 @@ import { Output, CanvasSource, BufferTarget, Mp4OutputFormat } from 'mediabunny'
 
 /**
  * Export the current scene to an H.264 MP4.
- * Pass `shuffleRenderer` for the Shuffle preset (frame-perfect 2D canvas export).
- * Pass `scene` for all Three.js presets (real-time capture).
+ * Pass `shuffleRenderer`   for the Shuffle preset.
+ * Pass `mainStageRenderer` for the Main Stage preset.
+ * Pass `scene`             for all Three.js presets (real-time capture).
  */
-export async function exportVideo({ scene, shuffleRenderer, fps, loopS, format, bgColor, onProgress }) {
+export async function exportVideo({ scene, shuffleRenderer, mainStageRenderer, fps, loopS, format, bgColor, onProgress }) {
   if (typeof VideoEncoder === 'undefined') {
     throw new Error('VideoEncoder API not available. Use Chrome 94+, Edge 94+, or Firefox 130+.')
   }
 
+  if (mainStageRenderer) {
+    return export2D({ renderer: mainStageRenderer, fps, loopS, format, bgColor, onProgress, label: 'mainstage' })
+  }
+
   if (shuffleRenderer) {
-    return exportShuffle({ shuffleRenderer, fps, loopS, format, bgColor, onProgress })
+    return export2D({ renderer: shuffleRenderer, fps, loopS, format, bgColor, onProgress, label: 'shuffle' })
   }
 
   // ── Three.js path: real-time frame capture ──────────────────────────────────
@@ -78,18 +83,18 @@ export async function exportVideo({ scene, shuffleRenderer, fps, loopS, format, 
   }
 }
 
-// ── Shuffle path: frame-perfect 2D canvas export ─────────────────────────────
+// ── 2D canvas path: frame-perfect export (Shuffle + Main Stage) ───────────────
 
-async function exportShuffle({ shuffleRenderer, fps, loopS, format, bgColor, onProgress }) {
+async function export2D({ renderer, fps, loopS, format, bgColor, onProgress, label }) {
   // Pause + stop the live animation loop
-  shuffleRenderer.pause()
-  shuffleRenderer.stop()
-  shuffleRenderer.reset()
+  renderer.pause()
+  renderer.stop()
+  renderer.reset()
 
-  // Off-screen canvas at export resolution (doesn't touch the live canvas)
-  const exportCanvas    = document.createElement('canvas')
-  exportCanvas.width    = format.w
-  exportCanvas.height   = format.h
+  // Off-screen canvas at export resolution
+  const exportCanvas   = document.createElement('canvas')
+  exportCanvas.width   = format.w
+  exportCanvas.height  = format.h
 
   const target = new BufferTarget()
   const output = new Output({
@@ -111,8 +116,7 @@ async function exportShuffle({ shuffleRenderer, fps, loopS, format, bgColor, onP
 
   try {
     for (let p = 0; p < totalFrames; p++) {
-      // Advance animation clock by exactly 1 frame and render to exportCanvas
-      shuffleRenderer.stepFrame(fps, exportCanvas, bgColor)
+      renderer.stepFrame(fps, exportCanvas, bgColor)
       await canvasSource.add(p / fps, 1 / fps)
       onProgress?.((p + 1) / totalFrames)
     }
@@ -123,13 +127,12 @@ async function exportShuffle({ shuffleRenderer, fps, loopS, format, bgColor, onP
     const blob = new Blob([target.buffer], { type: 'video/mp4' })
     const a    = document.createElement('a')
     a.href     = URL.createObjectURL(blob)
-    a.download = `myscape-shuffle-${format.w}x${format.h}.mp4`
+    a.download = `myscape-${label}-${format.w}x${format.h}.mp4`
     a.click()
     URL.revokeObjectURL(a.href)
 
   } finally {
-    // Restart the live animation
-    shuffleRenderer.start()
-    shuffleRenderer.resume()
+    renderer.start()
+    renderer.resume()
   }
 }

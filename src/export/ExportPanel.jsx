@@ -4,11 +4,12 @@ import LoopTimeline from '../components/LoopTimeline.jsx'
 import '../styles/export.css'
 
 const PRESETS = [
-  { key: 'sphere',  label: 'Sphere'  },
-  { key: 'ring',    label: 'Ring'    },
-  { key: 'helix',   label: 'Helix'   },
-  { key: 'flow',    label: 'Flow'    },
-  { key: 'shuffle', label: 'Shuffle' },
+  { key: 'sphere',    label: 'Sphere'     },
+  { key: 'ring',      label: 'Ring'       },
+  { key: 'helix',     label: 'Helix'      },
+  { key: 'flow',      label: 'Flow'       },
+  { key: 'shuffle',   label: 'Shuffle'    },
+  { key: 'mainStage', label: 'Main Stage' },
 ]
 
 function PhotoCount({ count, isShuffle }) {
@@ -29,12 +30,15 @@ export default function ExportPanel({
   controls, onControlsChange,
   loopS, onLoopChange,
   photoCount = 0,
+  exportFormat,
 }) {
   function setCtrl(key, val) {
     onControlsChange({ ...controls, [key]: val })
   }
 
-  const isShuffle = presetId === 'shuffle'
+  const isShuffle   = presetId === 'shuffle'
+  const isMainStage = presetId === 'mainStage'
+  const is2D        = isShuffle || isMainStage
 
   return (
     <div>
@@ -71,6 +75,13 @@ export default function ExportPanel({
         </div>
       </div>
 
+      {/* Portrait hint for Main Stage */}
+      {isMainStage && exportFormat !== 'portrait' && (
+        <p className="ep-photo-count" style={{ color: 'rgba(240,180,80,0.7)' }}>
+          Best with Portrait (9:16) format
+        </p>
+      )}
+
       {/* Photo count */}
       <PhotoCount count={photoCount} isShuffle={isShuffle} />
 
@@ -82,21 +93,30 @@ export default function ExportPanel({
       {/* Composition */}
       <h3 className="ep-section">Composition</h3>
       <div className="ep-panel">
-        {!isShuffle && (
+        {!is2D && (
           <NumberField label="Count"  value={controls.count}  min={1}   max={100} step={1}    onChange={v => setCtrl('count', v)} />
         )}
-        {!isShuffle && (
+        {!is2D && (
           <NumberField label="Zoom"   value={controls.zoom}   min={0.4} max={3}   step={0.05} onChange={v => setCtrl('zoom', v)} />
         )}
-        {!isShuffle && presetId !== 'flow' && (
+        {!is2D && presetId !== 'flow' && (
           <NumberField label="Radius" value={controls.radius} min={0.3} max={3}   step={0.05} onChange={v => setCtrl('radius', v)} />
         )}
-        {!isShuffle && (
+        {!is2D && (
           <NumberField label="Scale"  value={controls.scale}  min={0.2} max={2}   step={0.05} onChange={v => setCtrl('scale', v)} />
         )}
-        <NumberField label="Corners" value={controls.corners} min={0} max={0.5} step={0.01} onChange={v => setCtrl('corners', v)} />
-        {isShuffle && (
-          <NumberField label="Speed"  value={controls.speed}  min={0.2} max={4}   step={0.1}  onChange={v => setCtrl('speed', v)} />
+        {!isMainStage && (
+          <NumberField label="Corners" value={controls.corners} min={0} max={0.5} step={0.01} onChange={v => setCtrl('corners', v)} />
+        )}
+        {is2D && (
+          <NumberField
+            label="Speed"
+            value={controls.speed}
+            min={isMainStage ? 0.2 : 0.2}
+            max={isMainStage ? 3.0 : 4.0}
+            step={isMainStage ? 0.05 : 0.1}
+            onChange={v => setCtrl('speed', v)}
+          />
         )}
       </div>
 

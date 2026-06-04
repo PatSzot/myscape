@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import exifr from 'exifr'
 import LandscapeCanvas from './components/LandscapeCanvas.jsx'
 import ShuffleCanvas from './components/ShuffleCanvas.jsx'
+import MainStageCanvas from './components/MainStageCanvas.jsx'
 import LeftPanel from './components/LeftPanel.jsx'
 import RightPanel from './components/RightPanel.jsx'
 import ExportDock, { FORMATS } from './components/ExportDock.jsx'
@@ -90,7 +91,8 @@ export default function App() {
   const photoInputRef    = useRef(null)
   const poolRef          = useRef([])
   const sceneRef         = useRef(null)
-  const shuffleCanvasRef = useRef(null)
+  const shuffleCanvasRef   = useRef(null)
+  const mainStageCanvasRef = useRef(null)
   const canvasAreaRef    = useRef(null)
 
   // Core state
@@ -167,8 +169,9 @@ export default function App() {
       if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) return
       if (e.code === 'Space') {
         e.preventDefault()
-        if (presetId === 'shuffle') shuffleCanvasRef.current?.togglePause()
-        else sceneRef.current?.togglePause()
+        if (presetId === 'shuffle')        shuffleCanvasRef.current?.togglePause()
+        else if (presetId === 'mainStage') mainStageCanvasRef.current?.togglePause()
+        else                               sceneRef.current?.togglePause()
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
         e.preventDefault()
@@ -235,15 +238,18 @@ export default function App() {
   async function handleExport() {
     if (isExporting || images.length === 0) return
     const isShuffle      = presetId === 'shuffle'
-    const scene          = isShuffle ? null : sceneRef.current
-    const shuffleRenderer = isShuffle ? shuffleCanvasRef.current?.getRenderer() : null
-    if (!scene && !shuffleRenderer) return
+    const isMainStage    = presetId === 'mainStage'
+    const scene          = (!isShuffle && !isMainStage) ? sceneRef.current : null
+    const shuffleRenderer    = isShuffle   ? shuffleCanvasRef.current?.getRenderer()   : null
+    const mainStageRenderer  = isMainStage ? mainStageCanvasRef.current?.getRenderer() : null
+    if (!scene && !shuffleRenderer && !mainStageRenderer) return
     setIsExporting(true)
     setExportPct(0)
     try {
       await exportVideo({
         scene,
         shuffleRenderer,
+        mainStageRenderer,
         fps,
         loopS,
         format: FORMATS[exportFormat].export,
@@ -260,9 +266,10 @@ export default function App() {
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
-  const panelBg     = theme === 'dark' ? '#191812' : '#F0EDE4'
-  const isExport    = mode === 'export'
-  const showShuffle = isExport && presetId === 'shuffle'
+  const panelBg      = theme === 'dark' ? '#191812' : '#F0EDE4'
+  const isExport     = mode === 'export'
+  const showShuffle  = isExport && presetId === 'shuffle'
+  const showMainStage = isExport && presetId === 'mainStage'
   // In export mode, fall back to the MYSCAPE letter photos when no user photos are loaded
   const exportImages = images.length > 0 ? images : DEFAULT_EXPORT_IMAGES
 
@@ -297,6 +304,7 @@ export default function App() {
           bgColor={bgColor}         onBgChange={setBgColor}
           exportControls={exportControls} onExportControlsChange={setExportControls}
           loopS={loopS}             onLoopChange={setLoopS}
+          exportFormat={exportFormat}
         />
       )}
 
@@ -309,7 +317,7 @@ export default function App() {
             : { position: 'absolute', inset: 0 }
           }
         >
-          <div style={{ position: 'absolute', inset: 0, display: showShuffle ? 'none' : 'block' }}>
+          <div style={{ position: 'absolute', inset: 0, display: (showShuffle || showMainStage) ? 'none' : 'block' }}>
             <LandscapeCanvas
               images={isExport ? exportImages : images}
               corner={corner}
@@ -322,6 +330,16 @@ export default function App() {
                 ref={shuffleCanvasRef}
                 images={exportImages}
                 cornerFraction={exportControls.corners}
+                speed={exportControls.speed}
+              />
+            </div>
+          )}
+          {showMainStage && (
+            <div style={{ position: 'absolute', inset: 0 }}>
+              <MainStageCanvas
+                ref={mainStageCanvasRef}
+                photos={exportImages}
+                bgColor={bgColor}
                 speed={exportControls.speed}
               />
             </div>
