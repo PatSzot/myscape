@@ -1,33 +1,27 @@
 // ─── Spiral 2D canvas renderer ────────────────────────────────────────────────
-// Reverse-engineered from Spiral-1-1.json (Jitter/Lottie source).
+// Renders N photos in a radial spiral layout:
+//   - Outer layers (high initScale) → outer ring, large tile, peaks later
+//   - Inner layers (low initScale)  → inner ring, small tile, peaks earlier
+//   - Group rotates −720° over TOTAL_F (21.6 s at 60 fps)
+//   - Each photo zooms from its orbital tile size → fills canvas at peak
 //
-// Source: 1350×1350, 60 fps, 1296 frames (21.6 s), 19 user layers + 1 connector.
-//
-// Transform hierarchy (replicated exactly):
-//   canvas center (W/2, H/2)
-//   └─ group null [ind=22]: rotate 0→−720° over 1296 fr (linear), scale 30%
-//      └─ per image layer: p=[180,180], a=[427,445] in 821×857 precomp
-//            rotate by fixed angleOffset (−684°,−648°,…,−36° in source)
-//            scale: initScale → 820 (peak) → snap 100 → regrow to initScale
-//            opacity: outer 100%, inner dim→100%, then 0 after peak
-//
-// N-photo scaling keeps the same timing structure (stagger = TOTAL_F / N).
+// Source: Spiral-1-1.json (Jitter) — 1350×1350, 60 fps, 1296 frames, 19 layers.
 
 const TOTAL_F    = 1296   // 21.6 s at 60 fps
-const GROUP_ROT  = -720   // degrees: total group rotation over TOTAL_F (linear)
-const PAR_SCALE  = 0.30   // parent null layer scale (30%)
-const CHILD_POS  = 180    // child position x = y in parent space
-const REF_W      = 821    // precomp reference width  (px)
-const REF_H      = 857    // precomp reference height (px)
-const ANCHOR_X   = 427    // child anchor x in precomp (~REF_W/2)
-const ANCHOR_Y   = 445    // child anchor y in precomp (~REF_H/2)
-const REF_CANVAS = 1350   // source canvas side length (px)
-const PEAK_S     = 820    // peak scale % — image fills canvas at this value
-const SNAP_S     = 100    // scale % immediately after peak snap
-const ANG_STEP   = 36     // angular step between layers (degrees) — 360°/10
-const HIDDEN_MUL = 10     // hidden window = HIDDEN_MUL × stagger (~648 frames in source)
-const S_OUTER    = 784    // outermost layer initScale (layer 0 in source)
-const S_INNER    = 136    // innermost layer initScale (layer 18 in source)
+const GROUP_ROT  = -720   // total group rotation over TOTAL_F (degrees)
+const PEAK_S     = 820    // peak scale (image fills canvas at this value)
+const SNAP_S     = 100    // scale immediately after peak snap
+const ANG_STEP   = 36     // angular step between layers (°) — 360°/10
+const HIDDEN_MUL = 10     // hidden window = HIDDEN_MUL × stagger
+const S_OUTER    = 784    // initScale for outermost layer
+const S_INNER    = 136    // initScale for innermost layer
+
+// Radial layout constants (fractions of min(W,H))
+const ORBIT_R_OUTER = 0.37  // outer ring radius
+const ORBIT_R_INNER = 0.06  // inner ring radius
+const TILE_OUTER    = 0.20  // outer tile size
+const TILE_INNER    = 0.05  // inner tile size
+const SNAP_TILE     = 0.03  // tile size at the post-peak snap moment
 
 // ─── Build per-layer params from N ───────────────────────────────────────────
 
@@ -35,7 +29,6 @@ function buildLayers(N) {
   const stagger    = TOTAL_F / N
   const hiddenDur  = Math.min(HIDDEN_MUL * stagger, TOTAL_F - stagger)
   const scaleStep  = N > 1 ? (S_OUTER - S_INNER) / (N - 1) : 0
-  // Source: 10 outer (100% opacity), 9 inner (90%→10%). Maintain ratio.
   const outerCount = Math.max(1, Math.ceil(N / 2))
   const innerCount = N - outerCount
 
@@ -44,18 +37,16 @@ function buildLayers(N) {
     const peakFrame = (i + 1) * stagger
     const hiddenEnd = peakFrame + hiddenDur
 
-    // Angular offset: −36° step, outermost layer has the most negative value
+    // Angular offset: −ANG_STEP per layer, outermost most negative
     const angleOffset = -(N - i) * ANG_STEP
 
-    // Opacity
     let initOpacity, fadeToFullFrame
     if (i < outerCount) {
       initOpacity     = 100
       fadeToFullFrame = 0
     } else {
-      const idx       = i - outerCount + 1          // 1-based inner index
+      const idx       = i - outerCount + 1
       initOpacity     = Math.max(10, 100 - idx * 90 / Math.max(innerCount, 1))
-      // Fades to 100% in sync with corresponding outer layer's peakFrame
       fadeToFullFrame = idx * stagger
     }
 
@@ -69,11 +60,10 @@ function getLayerState(layer, fMod) {
   const { initScale, peakFrame, hiddenEnd, initOpacity, fadeToFullFrame } = layer
 
   if (fMod < peakFrame) {
-    // Phase 1 — GROWING: initScale → PEAK_S (linear)
+    // Phase 1 — growing: initScale → PEAK_S
     const t     = peakFrame > 0 ? fMod / peakFrame : 1
     const scale = initScale + (PEAK_S - initScale) * t
 
-    // Inner layers fade from initOpacity → 100 by fadeToFullFrame
     let opacity = 100
     if (initOpacity < 100 && fadeToFullFrame > 0 && fMod < fadeToFullFrame) {
       opacity = initOpacity + (100 - initOpacity) * (fMod / fadeToFullFrame)
@@ -81,9 +71,7 @@ function getLayerState(layer, fMod) {
     return { scale, opacity }
   }
 
-  // Phase 2 — POST-PEAK:
-  //   Scale: SNAP_S → initScale (linear, runs continuously even while hidden)
-  //   Opacity: 0 until hiddenEnd, then 100 (outer layers reappear; inner stay hidden)
+  // Phase 2 — post-peak: SNAP_S → initScale (regrow), hidden until hiddenEnd
   const regrowLen = TOTAL_F - peakFrame
   const tR        = regrowLen > 0 ? (fMod - peakFrame) / regrowLen : 1
   const scale     = SNAP_S + (initScale - SNAP_S) * tR
@@ -110,48 +98,75 @@ function renderTo(target, photos, frame, bgColor, layers) {
   const ctx  = target.getContext('2d')
   const W    = target.width
   const H    = target.height
+  const N    = layers.length
   const fMod = ((frame % TOTAL_F) + TOTAL_F) % TOTAL_F
 
   ctx.fillStyle = bgColor || '#000'
   ctx.fillRect(0, 0, W, H)
 
-  // Group rotation: linear −720° over TOTAL_F
+  // Group rotates −720° over TOTAL_F
   const groupRot = (GROUP_ROT * Math.PI / 180) * (fMod / TOTAL_F)
 
-  // Scale factor: maps source 1350 px canvas to actual render resolution
-  const cScale = Math.min(W, H) / REF_CANVAS
+  const S = Math.min(W, H)  // reference size
 
-  // Draw back-to-front: layer[N-1] (innermost, smallest) first — layer[0] ends up on top
-  for (let li = layers.length - 1; li >= 0; li--) {
-    const layer = layers[li]
+  // Draw back-to-front: innermost (small) first, outermost on top
+  for (let li = N - 1; li >= 0; li--) {
+    const layer  = layers[li]
     const { scale, opacity } = getLayerState(layer, fMod)
     if (opacity < 0.5) continue
 
     const photo = photos.length > 0 ? photos[layer.i % photos.length] : null
 
+    // radFrac: 0 = innermost (layer.i = N-1), 1 = outermost (layer.i = 0)
+    const radFrac = N > 1 ? 1 - layer.i / (N - 1) : 0.5
+
+    // Orbital radius and base tile size for this layer
+    const orbitR   = S * (ORBIT_R_INNER + radFrac * (ORBIT_R_OUTER - ORBIT_R_INNER))
+    const tileSize = S * (TILE_INNER    + radFrac * (TILE_OUTER    - TILE_INNER))
+
+    // Angular position = fixed layer angle + group rotation
+    const theta = layer.angleOffset * Math.PI / 180 + groupRot
+
+    // Orbital center in canvas space
+    const cx = W / 2 + orbitR * Math.cos(theta)
+    const cy = H / 2 + orbitR * Math.sin(theta)
+
+    // Derive draw size, position, and tilt from scale animation
+    let drawSize, drawX, drawY, tilt
+
+    if (scale >= layer.initScale) {
+      // Growing toward peak: tile zooms to full canvas, drifts to canvas center
+      const t   = Math.min(1, (scale - layer.initScale) / Math.max(PEAK_S - layer.initScale, 1))
+      drawSize  = tileSize + t * (S - tileSize)
+      drawX     = cx + t * (W / 2 - cx)
+      drawY     = cy + t * (H / 2 - cy)
+      tilt      = (1 - t) * layer.angleOffset * Math.PI / 180  // un-tilts as it fills canvas
+    } else {
+      // Regrow: post-snap tiny tile grows back to orbital size
+      const snapSize = S * SNAP_TILE
+      const t   = Math.min(1, Math.max(0, (scale - SNAP_S) / Math.max(layer.initScale - SNAP_S, 1)))
+      drawSize  = snapSize + t * (tileSize - snapSize)
+      drawX     = cx
+      drawY     = cy
+      tilt      = layer.angleOffset * Math.PI / 180
+    }
+
     ctx.save()
     ctx.globalAlpha = Math.max(0, Math.min(1, opacity / 100))
-
-    // ── Replicate Lottie transform hierarchy exactly ──────────────────────────
-    ctx.translate(W / 2, H / 2)                          // canvas center (parent pos)
-    ctx.rotate(groupRot)                                  // group rotation
-    ctx.scale(PAR_SCALE * cScale, PAR_SCALE * cScale)    // parent 30% + canvas scale
-    ctx.translate(CHILD_POS, CHILD_POS)                  // child position in parent space
-    ctx.rotate(layer.angleOffset * Math.PI / 180)        // child content rotation (fixed)
-    ctx.scale(scale / 100, scale / 100)                  // child scale (% → ratio)
-    ctx.translate(-ANCHOR_X, -ANCHOR_Y)                  // negative anchor
+    ctx.translate(drawX, drawY)
+    ctx.rotate(tilt)
 
     if (photo) {
-      drawCoverFit(ctx, photo, 0, 0, REF_W, REF_H)
+      drawCoverFit(ctx, photo, -drawSize / 2, -drawSize / 2, drawSize, drawSize)
     } else {
       // Placeholder tile
       ctx.fillStyle = '#111110'
-      ctx.fillRect(0, 0, REF_W, REF_H)
+      ctx.fillRect(-drawSize / 2, -drawSize / 2, drawSize, drawSize)
       ctx.fillStyle = 'rgba(255,255,255,0.15)'
-      ctx.font = `bold ${Math.round(REF_W * 0.25)}px "IBM Plex Mono", monospace`
+      ctx.font = `bold ${Math.round(drawSize * 0.35)}px "IBM Plex Mono", monospace`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText('M', REF_W / 2, REF_H / 2)
+      ctx.fillText('M', 0, 0)
     }
 
     ctx.restore()
