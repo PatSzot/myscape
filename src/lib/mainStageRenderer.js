@@ -1,116 +1,143 @@
 // ─── MainStage 2D canvas renderer ─────────────────────────────────────────────
-// Full-bleed portrait slideshow: slides scroll upward with mask breathing
-// and Ken-Burns pan/zoom during the hold phase.
+// Reverse-engineered from MainStage.json (Jitter/Lottie source).
 //
-// Animation anatomy (per photo cycle, t = 0..1):
-//   0 .. HOLD_FRAC   → Hold:       mask breathes FULL↔INHALED, Ken-Burns drift
-//   HOLD_FRAC .. 1.0 → Transition: current exits up, next enters from below
+// Structure per 150-frame slot:
+//   0..108  TRANSITION — prev slide exits up, curr slide enters from below
+//   108..150 HOLD      — curr slide stationary
+//
+// Mask: alpha-matte rect, no corner radius, anchored at (0,0), right+bottom shrink.
+//   FULL    = canvas size  (1080×1920 ref)
+//   INHALED = 860×1700 ref (cx=430, cy=850 → left/top edge stays at 0)
+//
+// Image positioning: Lottie transform with anchor [1000,1500] in 2048×2048 ref.
+//   panY=600 → shows lower portion of photo (entry start)
+//   panY=960 → shows center                 (hold position)
+//   panY=1120→ shows upper portion          (exit end)
+//
+// Scale/breath:
+//   Breath pre-roll: 12 frames before slot start
+//   Contract: 0→54 frames, easeQuad
+//   Expand:   54→150 frames, easeCubic
+//   Entering slide: scale 1.0→0.9→1.0  (light breath)
+//   Exiting  slide: scale 1.0→0.6→1.0  (heavy breath)
 
-const HOLD_FRAC  = 0.28
-const TRANS_FRAC = 0.72  // = 1 - HOLD_FRAC
+const STAGGER    = 150  // frames per slot
+const TRANS_F    = 108  // transition frames
+const B_PREROLL  = 12   // breath starts this many frames before slot
+const B_CONTRACT = 54   // frames to reach max contraction
+const B_EXPAND   = 96   // frames to recover (54+96=150)
 
-// Mask size ratios relative to canvas (anchored at top-left)
-// Derived from Jitter source: FULL 1080×1920, INHALED 860×1700 (cx=430, cy=850)
-const M_INHL_W  = 860 / 1080   // ~0.796
-const M_INHL_H  = 1700 / 1920  // ~0.885
-const M_CORNER  = 28 / 1080    // corner-radius ratio, applied only when inhaled
+const INHALE_W   = 860 / 1080
+const INHALE_H   = 1700 / 1920
 
-// Ken-Burns parameters (applied during hold phase)
-const KB_ZOOM_START = 1.06  // slight zoom-in at start of hold
-const KB_ZOOM_END   = 1.00  // eases back to cover-fit by end of hold
-const KB_PAN_START  = 0.30  // fractional vertical center (0=top, 1=bottom)
-const KB_PAN_END    = 0.52
+const PAN_BOT    = 600   // entry start  (lower portion of photo)
+const PAN_CENTER = 960   // hold         (center of photo)
+const PAN_TOP    = 1120  // exit end     (upper portion of photo)
 
-function easeIn(t)     { return t * t * t }
-function easeMask(t)   { return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2 }
-function lerp(a, b, t) { return a + (b - a) * t }
-function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)) }
+const SCALE_ENTRY = 0.9  // light breath peak (entering slide)
+const SCALE_EXIT  = 0.6  // heavy breath peak (exiting slide)
 
-// Compute source crop for cover-fit with zoom + vertical pan
-function coverCrop(img, dw, dh, zoom, panFrac) {
-  const imgAr = img.naturalWidth / img.naturalHeight
-  const boxAr = dw / dh
-  let bw, bh
-  if (imgAr > boxAr) { bh = img.naturalHeight; bw = bh * boxAr }
-  else               { bw = img.naturalWidth;  bh = bw / boxAr }
-  const sw   = bw / zoom
-  const sh   = bh / zoom
-  const sx   = (img.naturalWidth  - sw) / 2
-  const maxY = img.naturalHeight - sh
-  const sy   = clamp(maxY * panFrac, 0, maxY)
-  return { sx, sy, sw, sh }
+// Lottie image transform constants (ref coords: 1080×1920, image ref: 2048×2048)
+const ANCHOR_X   = 1000
+const ANCHOR_Y   = 1500
+const IMG_REF    = 2048
+
+function easeScroll(t)   { return t * t * t }          // ease-in cubic  (slow start, fast landing)
+function easeContract(t) { return t * t }              // ease-in quad   (breath contract)
+function easeExpand(t)   { return t * t * t }          // ease-in cubic  (breath expand)
+
+function lerp(a, b, t)   { return a + (b - a) * t }
+function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)) }
+
+// Returns 0=FULL .. 1=INHALED based on position within a breath cycle
+function breathValue(precomp_t) {
+  if (precomp_t <= 0) return 0
+  if (precomp_t < B_CONTRACT) {
+    return easeContract(precomp_t / B_CONTRACT)
+  }
+  const et = clamp((precomp_t - B_CONTRACT) / B_EXPAND, 0, 1)
+  return 1 - easeExpand(et)
 }
 
-// Draw one slide (photo) with a clipping mask and Ken-Burns crop
-function drawSlide(ctx, img, offsetY, maskW, maskH, maskR, zoom, panFrac) {
+// Draw one slide: clips to breathing mask rect, then draws image with Lottie transform
+function drawSlide(ctx, img, W, H, offsetY, breath, lottieSc, panY_ref) {
   if (!img) return
   ctx.save()
   ctx.translate(0, offsetY)
 
-  const x = 0, y = 0, w = maskW, h = maskH
-  const r = maskR
-
+  // Mask rect (no rounded corners, anchored at top-left)
+  const maskW = lerp(W, W * INHALE_W, breath)
+  const maskH = lerp(H, H * INHALE_H, breath)
   ctx.beginPath()
-  if (r > 0) {
-    ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y)
-    ctx.arcTo(x + w, y, x + w, y + r, r); ctx.lineTo(x + w, y + h - r)
-    ctx.arcTo(x + w, y + h, x + w - r, y + h, r); ctx.lineTo(x + r, y + h)
-    ctx.arcTo(x, y + h, x, y + h - r, r); ctx.lineTo(x, y + r)
-    ctx.arcTo(x, y, x + r, y, r); ctx.closePath()
-  } else {
-    ctx.rect(x, y, w, h)
-  }
+  ctx.rect(0, 0, maskW, maskH)
   ctx.clip()
 
-  const { sx, sy, sw, sh } = coverCrop(img, w, h, zoom, panFrac)
-  ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h)
+  // Lottie image transform: anchor (1000,1500) in 2048-ref placed at (540, panY) in 1080×1920 ref
+  const sx = W / 1080
+  const sy = H / 1920
+  const drawX = (540 - ANCHOR_X * lottieSc) * sx
+  const drawY = (panY_ref - ANCHOR_Y * lottieSc) * sy
+  const drawW = IMG_REF * lottieSc * sx
+  const drawH = IMG_REF * lottieSc * sy
+
+  // Cover-fit the user photo to the draw rect
+  const imgAr = img.naturalWidth / img.naturalHeight
+  const boxAr = drawW / drawH
+  let isx, isy, isw, ish
+  if (imgAr > boxAr) {
+    ish = img.naturalHeight; isw = ish * boxAr
+    isx = (img.naturalWidth - isw) / 2; isy = 0
+  } else {
+    isw = img.naturalWidth; ish = isw / boxAr
+    isx = 0; isy = (img.naturalHeight - ish) / 2
+  }
+  ctx.drawImage(img, isx, isy, isw, ish, drawX, drawY, drawW, drawH)
 
   ctx.restore()
 }
 
-function renderAt(target, imgEls, clock, bgColor) {
-  const ctx = target.getContext('2d')
-  const W = target.width
-  const H = target.height
-  const N = imgEls.length
+function renderAt(canvas, imgEls, clock, bgColor) {
+  const ctx = canvas.getContext('2d')
+  const W   = canvas.width
+  const H   = canvas.height
+  const N   = imgEls.length
 
   ctx.fillStyle = bgColor || '#000000'
   ctx.fillRect(0, 0, W, H)
   if (!N) return
 
-  const idx   = Math.floor(clock) % N
-  const photoT = clock - Math.floor(clock)  // 0..1 within this photo's cycle
+  const slot     = Math.floor(clock)
+  const t_frames = (clock - slot) * STAGGER   // 0..150 within slot
+  const currIdx  = ((slot % N) + N) % N
+  const prevIdx  = ((slot - 1 % N) + N) % N
 
-  if (photoT < HOLD_FRAC) {
-    // ── Hold phase ──────────────────────────────────────────────────────────
-    const holdT = photoT / HOLD_FRAC  // 0..1
+  if (t_frames < TRANS_F) {
+    // ── TRANSITION: prev exits up, curr enters from below ─────────────────────
+    const tp     = t_frames / TRANS_F          // 0..1
+    const easedP = easeScroll(tp)
 
-    // Mask breath: 0→1→0 triangle mapped through easeMask
-    const breathPhase = holdT < 0.5 ? holdT * 2 : (1 - holdT) * 2
-    const breathT = easeMask(breathPhase)
+    // Both entering and exiting use the same breath precomp_t formula:
+    //   precomp_t = B_PREROLL + t_frames  (breath starts 12 frames before slot)
+    const b_t = B_PREROLL + t_frames          // 12..120
 
-    const maskW = lerp(W, W * M_INHL_W, breathT)
-    const maskH = lerp(H, H * M_INHL_H, breathT)
-    const maskR = Math.round(Math.min(maskW, maskH) * M_CORNER * breathT)
+    // Prev slide (exiting): heavy breath (→60%), pan center→upper
+    const prevBreath = breathValue(b_t)
+    const prevSc     = lerp(1.0, SCALE_EXIT, prevBreath)
+    const prevPanY   = lerp(PAN_CENTER, PAN_TOP, tp)
+    drawSlide(ctx, imgEls[prevIdx], W, H, -H * easedP, prevBreath, prevSc, prevPanY)
 
-    const zoom    = lerp(KB_ZOOM_START, KB_ZOOM_END, holdT)
-    const panFrac = lerp(KB_PAN_START,  KB_PAN_END,  holdT)
-
-    drawSlide(ctx, imgEls[idx], 0, maskW, maskH, maskR, zoom, panFrac)
+    // Curr slide (entering): light breath (→90%), pan lower→center
+    const currBreath = breathValue(b_t)
+    const currSc     = lerp(1.0, SCALE_ENTRY, currBreath)
+    const currPanY   = lerp(PAN_BOT, PAN_CENTER, tp)
+    drawSlide(ctx, imgEls[currIdx], W, H, H * (1 - easedP), currBreath, currSc, currPanY)
 
   } else {
-    // ── Transition phase ─────────────────────────────────────────────────────
-    const transT  = (photoT - HOLD_FRAC) / TRANS_FRAC  // 0..1
-    const tEased  = easeIn(transT)
-    const nextIdx = (idx + 1) % N
-
-    // Current slide exits upward
-    const currOffY = -H * tEased
-    // Next slide enters from below
-    const nextOffY = H * (1 - tEased)
-
-    drawSlide(ctx, imgEls[idx],     currOffY, W, H, 0, KB_ZOOM_END,   KB_PAN_END)
-    drawSlide(ctx, imgEls[nextIdx], nextOffY, W, H, 0, KB_ZOOM_START, KB_PAN_START)
+    // ── HOLD: only curr visible, breath1 still expanding toward FULL ──────────
+    const b_t    = B_PREROLL + t_frames        // 120..162
+    const breath = breathValue(b_t)
+    const sc     = lerp(1.0, SCALE_ENTRY, breath)
+    drawSlide(ctx, imgEls[currIdx], W, H, 0, breath, sc, PAN_CENTER)
   }
 }
 
@@ -120,7 +147,7 @@ export function createMainStageRenderer(canvas, options = {}) {
   let { photos = [], bgColor = '#000000', speed = 1.0 } = options
 
   let imgEls = []
-  let clock  = 0
+  let clock  = TRANS_F / STAGGER  // start in hold phase (first photo already on screen)
   let paused = false
   let rafId  = null
   let lastTs = null
@@ -157,7 +184,7 @@ export function createMainStageRenderer(canvas, options = {}) {
     resume()       { paused = false; lastTs = null },
     togglePause()  { paused ? this.resume() : this.pause() },
     isPaused()     { return paused },
-    reset()        { clock = 0; lastTs = null },
+    reset()        { clock = TRANS_F / STAGGER; lastTs = null },
 
     // Frame-perfect step for export
     stepFrame(fps, targetCanvas, bg) {
