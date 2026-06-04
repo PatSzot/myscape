@@ -119,7 +119,7 @@ export default function App() {
 
   // ── Preview canvas dimensions (export mode only) ────────────────────────────
   useEffect(() => {
-    if (!isExport) return
+    if (mode !== 'export') return
     const el = canvasAreaRef.current
     if (!el) return
     function compute() {
@@ -137,7 +137,7 @@ export default function App() {
     const ro = new ResizeObserver(compute)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [isExport, exportFormat])
+  }, [mode, exportFormat])
 
   // ── Load shared scape ──────────────────────────────────────────────────────
   useEffect(() => {
