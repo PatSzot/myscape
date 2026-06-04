@@ -203,9 +203,11 @@ export async function initScapeScene(container) {
   })
   ro.observe(container)
 
-  // Start
+  // Start – use requestAnimationFrame so the first animate() call receives a
+  // proper DOMHighResTimeStamp; calling animate() directly passes undefined,
+  // which makes dt = NaN and corrupts animOffset on frame 2.
   updateOrthoCamera()
-  animate()
+  rafId = requestAnimationFrame(animate)
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
