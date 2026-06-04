@@ -327,7 +327,7 @@ export default function App() {
         />
       )}
 
-      <div className="canvas-area" ref={canvasAreaRef}>
+      <div className={`canvas-area${isExporting ? ' is-exporting' : ''}`} ref={canvasAreaRef}>
         {/* Canvas wrapper: fills area in explore, constrained to aspect ratio in export */}
         <div
           className={isExport ? 'export-canvas-wrapper' : undefined}

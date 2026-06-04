@@ -114,13 +114,17 @@ export default function LeftPanel({
       {/* Mode switcher — always visible, not scrollable */}
       <div style={{ padding: '16px 16px 0', flexShrink: 0 }}>
         <div className="mode-switcher" style={{ margin: '0 0 16px' }}>
-          {['explore', 'export'].map(m => (
+          {[
+            { id: 'explore', icon: 'ri-compass-3-line', label: 'Explore' },
+            { id: 'export',  icon: 'ri-film-line',      label: 'Export'  },
+          ].map(({ id, icon, label }) => (
             <button
-              key={m}
-              className={`mode-btn ${mode === m ? 'mode-btn--active' : ''}`}
-              onClick={() => onModeChange(m)}
+              key={id}
+              className={`mode-btn ${mode === id ? 'mode-btn--active' : ''}`}
+              onClick={() => onModeChange(id)}
             >
-              {m}
+              <i className={icon} />
+              {label}
             </button>
           ))}
         </div>

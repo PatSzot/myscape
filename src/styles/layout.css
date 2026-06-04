@@ -6,8 +6,11 @@
   grid-template-rows: 1fr;
   grid-template-areas: "canvas";
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
+  /* iOS safe-area (notch, home indicator) */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 .app-layout.view-mode {
@@ -30,23 +33,23 @@
   top: 16px;
   left: 16px;
   z-index: 100;
-  width: 220px;
-  max-height: calc(100vh - 32px);
+  width: var(--panel-width, 220px);
+  max-height: calc(100dvh - 32px);
 
-  background: rgba(18, 18, 16, 0.82);
+  background: var(--panel-bg-dark, rgba(18, 18, 16, 0.82));
   backdrop-filter: blur(18px) saturate(1.4);
   -webkit-backdrop-filter: blur(18px) saturate(1.4);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--panel-border-dark, rgba(255, 255, 255, 0.08));
   border-radius: 10px;
 
-  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
-              opacity  0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform var(--transition-panel, 0.28s cubic-bezier(0.4, 0, 0.2, 1)),
+              opacity  var(--transition-panel, 0.28s cubic-bezier(0.4, 0, 0.2, 1));
 }
 
 /* Light theme variant */
 .app-layout[data-theme="light"] .panel--left {
-  background: rgba(240, 237, 228, 0.88);
-  border-color: rgba(0, 0, 0, 0.07);
+  background: var(--panel-bg-light, rgba(240, 237, 228, 0.88));
+  border-color: var(--panel-border-light, rgba(0, 0, 0, 0.07));
 }
 
 /* ─── Left panel scrollbar ───────────────────────────────────────────────── */
@@ -81,26 +84,26 @@
   z-index: 100;
   width: 200px;
 
-  background: rgba(18, 18, 16, 0.82);
+  background: var(--panel-bg-dark, rgba(18, 18, 16, 0.82));
   backdrop-filter: blur(18px) saturate(1.4);
   -webkit-backdrop-filter: blur(18px) saturate(1.4);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--panel-border-dark, rgba(255, 255, 255, 0.08));
   border-radius: 10px;
   padding: 14px 14px;
 }
 
 /* Light theme variant */
 .app-layout[data-theme="light"] .panel--right {
-  background: rgba(240, 237, 228, 0.88);
-  border-color: rgba(0, 0, 0, 0.07);
+  background: var(--panel-bg-light, rgba(240, 237, 228, 0.88));
+  border-color: var(--panel-border-light, rgba(0, 0, 0, 0.07));
 }
 
 /* ─── Export right panel: taller, wider ──────────────────────────────────── */
 
 .panel--right.panel--export {
   width: 236px;
-  max-height: calc(100vh - 120px);
-  bottom: 88px;  /* leave room for bottom bar */
+  max-height: calc(100dvh - 120px);
+  bottom: 88px;
 }
 
 /* ─── Bottom bar: fixed strip above bottom edge ──────────────────────────── */
@@ -116,18 +119,18 @@
   align-items: center;
   gap: 10px;
 
-  background: rgba(18, 18, 16, 0.82);
+  background: var(--panel-bg-dark, rgba(18, 18, 16, 0.82));
   backdrop-filter: blur(18px) saturate(1.4);
   -webkit-backdrop-filter: blur(18px) saturate(1.4);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--panel-border-dark, rgba(255, 255, 255, 0.08));
   border-radius: 12px;
   padding: 10px 14px;
   white-space: nowrap;
 }
 
 .app-layout[data-theme="light"] .panel--bottom {
-  background: rgba(240, 237, 228, 0.88);
-  border-color: rgba(0, 0, 0, 0.07);
+  background: var(--panel-bg-light, rgba(240, 237, 228, 0.88));
+  border-color: var(--panel-border-light, rgba(0, 0, 0, 0.07));
 }
 
 /* ─── Canvas: full-bleed behind the floating panel ───────────────────────── */
@@ -143,6 +146,30 @@
   justify-content: center;
 }
 
+/* ─── Export in-progress overlay ─────────────────────────────────────────── */
+
+.canvas-area.is-exporting::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  z-index: 5;
+  animation: exportPulse 2s ease-in-out infinite;
+}
+
+@keyframes exportPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-area.is-exporting::after {
+    animation: none;
+    opacity: 0.85;
+  }
+}
+
 /* ─── Export canvas wrapper: aspect-ratio constrained, centered ──────────── */
 
 .export-canvas-wrapper {
@@ -152,7 +179,7 @@
   border-radius: 8px;
   outline: 1px solid rgba(255, 255, 255, 0.07);
   background: #000;
-  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+  transition: width  0.3s cubic-bezier(0.16, 1, 0.3, 1),
               height 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -163,22 +190,28 @@
   top: 16px;
   left: 16px;
   z-index: 101;
-  width: 36px;
-  height: 36px;
+  /* HIG: 44×44px minimum touch target */
+  width: 44px;
+  height: 44px;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(18, 18, 16, 0.8);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   color: rgba(255, 255, 255, 0.55);
-  font-size: 15px;
+  font-size: 16px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  transition: opacity 0.2s ease, transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--transition-fast, 0.15s ease-out),
+              opacity 0.2s ease,
+              transform var(--transition-panel, 0.28s cubic-bezier(0.4, 0, 0.2, 1));
 }
+
+.panel-toggle-btn:hover { color: rgba(255, 255, 255, 0.85); }
 
 .toggle-label { display: none; }
 
@@ -221,11 +254,12 @@
 
   .panel--left {
     top: auto;
-    bottom: 72px;
+    /* clear full-width dock (var(--dock-h)) + safe-area + gap */
+    bottom: calc(var(--dock-h, 64px) + env(safe-area-inset-bottom) + 8px);
     left: 8px;
     right: 8px;
     width: auto;
-    max-height: 62vh;
+    max-height: 62dvh;
     border-radius: 12px;
   }
 
@@ -236,7 +270,7 @@
   /* "Create" pill button — centered bottom */
   .panel-toggle-btn {
     top: auto;
-    bottom: 16px;
+    bottom: calc(var(--dock-h, 64px) + env(safe-area-inset-bottom) + 8px);
     left: 50%;
     transform: translateX(-50%);
     width: auto;
@@ -252,7 +286,6 @@
   .toggle-icon  { display: none; }
   .toggle-label { display: inline; }
 
-  /* Hide Create button when panel is open */
   .panel-toggle-btn--open {
     opacity: 0;
     pointer-events: none;
@@ -265,11 +298,11 @@
 
   .panel--left {
     top: auto;
-    bottom: 68px;
+    bottom: calc(var(--dock-h, 64px) + env(safe-area-inset-bottom) + 6px);
     left: 6px;
     right: 6px;
     width: auto;
-    max-height: 62vh;
+    max-height: 62dvh;
     border-radius: 12px;
   }
 
@@ -279,13 +312,13 @@
   /* "Create" pill button — centered bottom */
   .panel-toggle-btn {
     top: auto;
-    bottom: 14px;
+    bottom: calc(var(--dock-h, 64px) + env(safe-area-inset-bottom) + 8px);
     left: 50%;
     transform: translateX(-50%);
     width: auto;
-    height: 42px;
+    height: 44px;
     padding: 0 22px;
-    border-radius: 21px;
+    border-radius: 22px;
     font-family: "IBM Plex Mono", monospace;
     font-size: 11px;
     letter-spacing: 0.09em;
@@ -295,7 +328,6 @@
   .toggle-icon  { display: none; }
   .toggle-label { display: inline; }
 
-  /* Hide Create button when panel is open */
   .panel-toggle-btn--open {
     opacity: 0;
     pointer-events: none;
