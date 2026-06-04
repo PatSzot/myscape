@@ -42,9 +42,11 @@ const ANCHOR_X   = 1000
 const ANCHOR_Y   = 1500
 const IMG_REF    = 2048
 
-function easeScroll(t)   { return t * t * t }          // ease-in cubic  (slow start, fast landing)
-function easeContract(t) { return t * t }              // ease-in quad   (breath contract)
-function easeExpand(t)   { return t * t * t }          // ease-in cubic  (breath expand)
+// Cubic ease-in-out — smooth at both start and end
+function easeInOut(t)    { return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2 }
+function easeScroll(t)   { return easeInOut(t) }
+function easeContract(t) { return easeInOut(t) }
+function easeExpand(t)   { return easeInOut(t) }
 
 function lerp(a, b, t)   { return a + (b - a) * t }
 function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)) }
@@ -123,13 +125,13 @@ function renderAt(canvas, imgEls, clock, bgColor) {
     // Prev slide (exiting): heavy breath (→60%), pan center→upper
     const prevBreath = breathValue(b_t)
     const prevSc     = lerp(1.0, SCALE_EXIT, prevBreath)
-    const prevPanY   = lerp(PAN_CENTER, PAN_TOP, tp)
+    const prevPanY   = lerp(PAN_CENTER, PAN_TOP, easedP)
     drawSlide(ctx, imgEls[prevIdx], W, H, -H * easedP, prevBreath, prevSc, prevPanY)
 
     // Curr slide (entering): light breath (→90%), pan lower→center
     const currBreath = breathValue(b_t)
     const currSc     = lerp(1.0, SCALE_ENTRY, currBreath)
-    const currPanY   = lerp(PAN_BOT, PAN_CENTER, tp)
+    const currPanY   = lerp(PAN_BOT, PAN_CENTER, easedP)
     drawSlide(ctx, imgEls[currIdx], W, H, H * (1 - easedP), currBreath, currSc, currPanY)
 
   } else {
