@@ -1,136 +1,160 @@
 // ─── Spiral 2D canvas renderer ────────────────────────────────────────────────
-// Inspired by Spiral-1-1.json (Jitter/Lottie source).
+// Reverse-engineered from Spiral-1-1.json (Jitter/Lottie source).
 //
-// Concept: concentric spiral of images viewed face-on, all sharing the same
-// canvas-center pivot. The entire formation rotates CCW: −720° over 1296 frames
-// (21.6 s at 60 fps). Each image grows to fill the canvas in sequence, then
-// snaps invisible for a hidden window before reappearing small.
+// Source: 1350×1350, 60 fps, 1296 frames (21.6 s), 19 user layers + 1 connector.
 //
-// Source: 19 layers, 1350×1350 canvas, 60 fps, 1296 frames.
-// Scale range: 784→136 (% of 820 peak) outer→inner.
-// All layers at same orbital radius; scale difference creates depth illusion.
+// Transform hierarchy (replicated exactly):
+//   canvas center (W/2, H/2)
+//   └─ group null [ind=22]: rotate 0→−720° over 1296 fr (linear), scale 30%
+//      └─ per image layer: p=[180,180], a=[427,445] in 821×857 precomp
+//            rotate by fixed angleOffset (−684°,−648°,…,−36° in source)
+//            scale: initScale → 820 (peak) → snap 100 → regrow to initScale
+//            opacity: outer 100%, inner dim→100%, then 0 after peak
+//
+// N-photo scaling keeps the same timing structure (stagger = TOTAL_F / N).
 
-const TOTAL_F       = 1296   // 21.6 s at 60 fps
-const GROUP_ROT_DEG = -720   // total group rotation over TOTAL_F (2 full CCW turns)
-const SCALE_MAX     = 820    // peak denominator (= 100% canvas fill)
-const SCALE_MIN_0   = 784    // outermost layer start scale (numerator)
-const SCALE_MIN_N   = 136    // innermost layer start scale (numerator)
+const TOTAL_F    = 1296   // 21.6 s at 60 fps
+const GROUP_ROT  = -720   // degrees: total group rotation over TOTAL_F (linear)
+const PAR_SCALE  = 0.30   // parent null layer scale (30%)
+const CHILD_POS  = 180    // child position x = y in parent space
+const REF_W      = 821    // precomp reference width  (px)
+const REF_H      = 857    // precomp reference height (px)
+const ANCHOR_X   = 427    // child anchor x in precomp (~REF_W/2)
+const ANCHOR_Y   = 445    // child anchor y in precomp (~REF_H/2)
+const REF_CANVAS = 1350   // source canvas side length (px)
+const PEAK_S     = 820    // peak scale % — image fills canvas at this value
+const SNAP_S     = 100    // scale % immediately after peak snap
+const ANG_STEP   = 36     // angular step between layers (degrees) — 360°/10
+const HIDDEN_MUL = 10     // hidden window = HIDDEN_MUL × stagger (~648 frames in source)
+const S_OUTER    = 784    // outermost layer initScale (layer 0 in source)
+const S_INNER    = 136    // innermost layer initScale (layer 18 in source)
 
-function lerp(a, b, t) { return a + (b - a) * t }
-
-// ─── Build per-layer params from N photos ────────────────────────────────────
+// ─── Build per-layer params from N ───────────────────────────────────────────
 
 function buildLayers(N) {
   const stagger    = TOTAL_F / N
-  const hiddenDur  = Math.min(stagger * 10, TOTAL_F - stagger)
-  const scaleStep  = N > 1 ? (SCALE_MIN_0 - SCALE_MIN_N) / (N - 1) : 0
-  const angStep    = (360 * 2) / N          // 2 full rotations of angular spread
-  const outerCount = Math.ceil(N / 2)
+  const hiddenDur  = Math.min(HIDDEN_MUL * stagger, TOTAL_F - stagger)
+  const scaleStep  = N > 1 ? (S_OUTER - S_INNER) / (N - 1) : 0
+  // Source: 10 outer (100% opacity), 9 inner (90%→10%). Maintain ratio.
+  const outerCount = Math.max(1, Math.ceil(N / 2))
+  const innerCount = N - outerCount
 
-  return Array.from({ length: N }, (_, i) => ({
-    i,
-    angleOffset: -(angStep * i),                           // degrees, fixed per layer
-    initScale:   (SCALE_MIN_0 - i * scaleStep) / SCALE_MAX, // normalized 0→1
-    peakFrame:   (i + 1) * stagger,
-    hiddenEnd:   (i + 1) * stagger + hiddenDur,
-    initOpacity: i < outerCount
-      ? 1.0
-      : Math.max(0.1, 1.0 - (i - outerCount + 1) / Math.max(N - outerCount, 1)),
-  }))
+  return Array.from({ length: N }, (_, i) => {
+    const initScale = S_OUTER - i * scaleStep
+    const peakFrame = (i + 1) * stagger
+    const hiddenEnd = peakFrame + hiddenDur
+
+    // Angular offset: −36° step, outermost layer has the most negative value
+    const angleOffset = -(N - i) * ANG_STEP
+
+    // Opacity
+    let initOpacity, fadeToFullFrame
+    if (i < outerCount) {
+      initOpacity     = 100
+      fadeToFullFrame = 0
+    } else {
+      const idx       = i - outerCount + 1          // 1-based inner index
+      initOpacity     = Math.max(10, 100 - idx * 90 / Math.max(innerCount, 1))
+      // Fades to 100% in sync with corresponding outer layer's peakFrame
+      fadeToFullFrame = idx * stagger
+    }
+
+    return { i, angleOffset, initScale, peakFrame, hiddenEnd, initOpacity, fadeToFullFrame }
+  })
 }
 
 // ─── Layer state at frame fMod (0..TOTAL_F) ──────────────────────────────────
 
 function getLayerState(layer, fMod) {
-  const { initScale, peakFrame, hiddenEnd, initOpacity } = layer
+  const { initScale, peakFrame, hiddenEnd, initOpacity, fadeToFullFrame } = layer
 
   if (fMod < peakFrame) {
-    // Growing: initScale → 1.0 (peakScale)
-    const t = fMod / peakFrame
-    return { scale: lerp(initScale, 1.0, t), opacity: lerp(initOpacity, 1.0, t) }
-  }
+    // Phase 1 — GROWING: initScale → PEAK_S (linear)
+    const t     = peakFrame > 0 ? fMod / peakFrame : 1
+    const scale = initScale + (PEAK_S - initScale) * t
 
-  const hiddenEndClamped = Math.min(hiddenEnd, TOTAL_F)
-  if (fMod < hiddenEndClamped) {
-    // Hidden: snap back to initScale, fully transparent
-    return { scale: initScale, opacity: 0 }
-  }
-
-  // Reappear: grow again from initScale toward peakScale
-  const phaseLen = TOTAL_F - hiddenEnd
-  if (phaseLen <= 0) return { scale: initScale, opacity: initOpacity }
-  const t = (fMod - hiddenEnd) / phaseLen
-  return { scale: lerp(initScale, 1.0, t), opacity: lerp(initOpacity, 1.0, t) }
-}
-
-// ─── Draw one image (cover-fit into a square centered on cx, cy) ─────────────
-
-function drawImageCover(ctx, photo, cx, cy, size, opacity, angle) {
-  ctx.save()
-  ctx.globalAlpha = Math.max(0, Math.min(1, opacity))
-  ctx.translate(cx, cy)
-  ctx.rotate(angle)
-
-  const half = size / 2
-
-  if (photo) {
-    const iw = photo.naturalWidth
-    const ih = photo.naturalHeight
-    let sx, sy, sw, sh
-    if (iw >= ih) {
-      // landscape/square: crop sides to make square
-      sw = ih; sh = ih
-      sx = (iw - sw) / 2; sy = 0
-    } else {
-      // portrait: crop top/bottom
-      sw = iw; sh = iw
-      sx = 0; sy = (ih - sh) / 2
+    // Inner layers fade from initOpacity → 100 by fadeToFullFrame
+    let opacity = 100
+    if (initOpacity < 100 && fadeToFullFrame > 0 && fMod < fadeToFullFrame) {
+      opacity = initOpacity + (100 - initOpacity) * (fMod / fadeToFullFrame)
     }
-    ctx.drawImage(photo, sx, sy, sw, sh, -half, -half, size, size)
-  } else {
-    // Placeholder tile
-    ctx.fillStyle = '#111110'
-    ctx.fillRect(-half, -half, size, size)
-    ctx.fillStyle = 'rgba(255,255,255,0.15)'
-    ctx.font = `500 ${Math.round(size * 0.25)}px "IBM Plex Mono", monospace`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText('M', 0, 0)
+    return { scale, opacity }
   }
 
-  ctx.restore()
+  // Phase 2 — POST-PEAK:
+  //   Scale: SNAP_S → initScale (linear, runs continuously even while hidden)
+  //   Opacity: 0 until hiddenEnd, then 100 (outer layers reappear; inner stay hidden)
+  const regrowLen = TOTAL_F - peakFrame
+  const tR        = regrowLen > 0 ? (fMod - peakFrame) / regrowLen : 1
+  const scale     = SNAP_S + (initScale - SNAP_S) * tR
+  const isHidden  = fMod < Math.min(hiddenEnd, TOTAL_F)
+  return { scale, opacity: isHidden ? 0 : 100 }
 }
 
-// ─── Render to a canvas element ──────────────────────────────────────────────
+// ─── Cover-fit a photo into [x, y, w, h] ─────────────────────────────────────
 
-function renderTo(target, photos, frame, bgColor, cachedLayers) {
-  const ctx = target.getContext('2d')
-  const W = target.width
-  const H = target.height
-  const cx = W / 2
-  const cy = H / 2
-  const minDim = Math.min(W, H)
+function drawCoverFit(ctx, photo, x, y, w, h) {
+  const iw  = photo.naturalWidth
+  const ih  = photo.naturalHeight
+  const iAr = iw / ih
+  const bAr = w / h
+  let sx, sy, sw, sh
+  if (iAr > bAr) { sh = ih; sw = ih * bAr; sx = (iw - sw) / 2; sy = 0 }
+  else            { sw = iw; sh = iw / bAr; sx = 0; sy = (ih - sh) / 2 }
+  ctx.drawImage(photo, sx, sy, sw, sh, x, y, w, h)
+}
 
-  ctx.fillStyle = bgColor || '#000000'
-  ctx.fillRect(0, 0, W, H)
+// ─── Render one frame to a canvas ────────────────────────────────────────────
 
+function renderTo(target, photos, frame, bgColor, layers) {
+  const ctx  = target.getContext('2d')
+  const W    = target.width
+  const H    = target.height
   const fMod = ((frame % TOTAL_F) + TOTAL_F) % TOTAL_F
 
-  // Group rotation: linear −720° over TOTAL_F frames
-  const groupAngleRad = (GROUP_ROT_DEG * Math.PI / 180) * (fMod / TOTAL_F)
+  ctx.fillStyle = bgColor || '#000'
+  ctx.fillRect(0, 0, W, H)
 
-  // Draw back-to-front: innermost (smallest initScale) first so outermost is on top
-  const sorted = [...cachedLayers].sort((a, b) => a.initScale - b.initScale)
+  // Group rotation: linear −720° over TOTAL_F
+  const groupRot = (GROUP_ROT * Math.PI / 180) * (fMod / TOTAL_F)
 
-  for (const layer of sorted) {
+  // Scale factor: maps source 1350 px canvas to actual render resolution
+  const cScale = Math.min(W, H) / REF_CANVAS
+
+  // Draw back-to-front: layer[N-1] (innermost, smallest) first — layer[0] ends up on top
+  for (let li = layers.length - 1; li >= 0; li--) {
+    const layer = layers[li]
     const { scale, opacity } = getLayerState(layer, fMod)
-    if (opacity <= 0.005) continue
+    if (opacity < 0.5) continue
 
     const photo = photos.length > 0 ? photos[layer.i % photos.length] : null
-    const totalAngle = (layer.angleOffset * Math.PI / 180) + groupAngleRad
-    const drawSize = minDim * scale
 
-    drawImageCover(ctx, photo, cx, cy, drawSize, opacity, totalAngle)
+    ctx.save()
+    ctx.globalAlpha = Math.max(0, Math.min(1, opacity / 100))
+
+    // ── Replicate Lottie transform hierarchy exactly ──────────────────────────
+    ctx.translate(W / 2, H / 2)                          // canvas center (parent pos)
+    ctx.rotate(groupRot)                                  // group rotation
+    ctx.scale(PAR_SCALE * cScale, PAR_SCALE * cScale)    // parent 30% + canvas scale
+    ctx.translate(CHILD_POS, CHILD_POS)                  // child position in parent space
+    ctx.rotate(layer.angleOffset * Math.PI / 180)        // child content rotation (fixed)
+    ctx.scale(scale / 100, scale / 100)                  // child scale (% → ratio)
+    ctx.translate(-ANCHOR_X, -ANCHOR_Y)                  // negative anchor
+
+    if (photo) {
+      drawCoverFit(ctx, photo, 0, 0, REF_W, REF_H)
+    } else {
+      // Placeholder tile
+      ctx.fillStyle = '#111110'
+      ctx.fillRect(0, 0, REF_W, REF_H)
+      ctx.fillStyle = 'rgba(255,255,255,0.15)'
+      ctx.font = `bold ${Math.round(REF_W * 0.25)}px "IBM Plex Mono", monospace`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('M', REF_W / 2, REF_H / 2)
+    }
+
+    ctx.restore()
   }
 }
 
@@ -146,16 +170,13 @@ export function createSpiralRenderer(canvas, options = {}) {
   let rafId  = null
   let lastTs = null
 
-  // Layer cache — rebuilt only when N changes
+  // Layer cache — rebuilt only when photo count changes
   let cachedN      = -1
   let cachedLayers = []
 
   function getLayers() {
     const N = photos.length > 0 ? photos.length : 6
-    if (N !== cachedN) {
-      cachedLayers = buildLayers(N)
-      cachedN = N
-    }
+    if (N !== cachedN) { cachedLayers = buildLayers(N); cachedN = N }
     return cachedLayers
   }
 
@@ -165,10 +186,7 @@ export function createSpiralRenderer(canvas, options = {}) {
 
   function tick(ts) {
     if (!paused) {
-      if (lastTs !== null) {
-        const dt = (ts - lastTs) / 1000
-        frame = (frame + dt * 60 * speed) % TOTAL_F
-      }
+      if (lastTs !== null) frame = (frame + (ts - lastTs) / 1000 * 60 * speed) % TOTAL_F
       lastTs = ts
       render(canvas, bgColor)
     }
@@ -188,15 +206,15 @@ export function createSpiralRenderer(canvas, options = {}) {
   startLoop()
 
   return {
-    setPhotos(p)   { photos = p || []; cachedN = -1 },
-    setBgColor(c)  { bgColor = c },
-    setSpeed(s)    { speed = s },
+    setPhotos(p)  { photos = p || []; cachedN = -1 },
+    setBgColor(c) { bgColor = c },
+    setSpeed(s)   { speed = s },
 
-    pause()        { paused = true },
-    resume()       { paused = false; lastTs = null },
-    togglePause()  { paused ? this.resume() : this.pause() },
-    isPaused()     { return paused },
-    reset()        { frame = 0; lastTs = null },
+    pause()       { paused = true },
+    resume()      { paused = false; lastTs = null },
+    togglePause() { paused ? this.resume() : this.pause() },
+    isPaused()    { return paused },
+    reset()       { frame = 0; lastTs = null },
 
     // Frame-perfect step for export
     stepFrame(fps, targetCanvas, bg) {
