@@ -81,6 +81,9 @@ const _params   = new URLSearchParams(window.location.search)
 const SHARE_ID  = _params.get('s')
 const VIEW_MODE = _params.has('view') || !!SHARE_ID
 
+// Default images shown in export mode when no photos are uploaded
+const DEFAULT_EXPORT_IMAGES = ['M', 'Y', 'S', 'C', 'A', 'P', 'E'].map(l => ({ url: `/${l}.jpg`, meta: {} }))
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -257,9 +260,11 @@ export default function App() {
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
-  const panelBg   = theme === 'dark' ? '#191812' : '#F0EDE4'
-  const isExport  = mode === 'export'
+  const panelBg     = theme === 'dark' ? '#191812' : '#F0EDE4'
+  const isExport    = mode === 'export'
   const showShuffle = isExport && presetId === 'shuffle'
+  // In export mode, fall back to the MYSCAPE letter photos when no user photos are loaded
+  const exportImages = images.length > 0 ? images : DEFAULT_EXPORT_IMAGES
 
   return (
     <div className={`app-layout${VIEW_MODE ? ' view-mode' : ''}`}
@@ -306,7 +311,7 @@ export default function App() {
         >
           <div style={{ position: 'absolute', inset: 0, display: showShuffle ? 'none' : 'block' }}>
             <LandscapeCanvas
-              images={images}
+              images={isExport ? exportImages : images}
               corner={corner}
               onSceneReady={scene => { sceneRef.current = scene }}
             />
@@ -315,7 +320,7 @@ export default function App() {
             <div style={{ position: 'absolute', inset: 0 }}>
               <ShuffleCanvas
                 ref={shuffleCanvasRef}
-                images={images}
+                images={exportImages}
                 cornerFraction={exportControls.corners}
                 speed={exportControls.speed}
               />
