@@ -446,7 +446,7 @@ export default function App() {
         )}
       </div>
 
-      {!VIEW_MODE && useShareDock && (
+      {!VIEW_MODE && useShareDock && images.length > 0 && (
         <ShareDock onShare={handleCopyLink} />
       )}
 
