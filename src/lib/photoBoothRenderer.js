@@ -29,20 +29,16 @@ function loadImg(url) {
 }
 
 function getLayout(cw, ch) {
-  const aspect = cw / ch
-  // Portrait canvas (9:16): wider strip; square (1:1): standard strip
-  const isPortrait = aspect < 0.7
-
-  const stripW = Math.round(Math.min(cw, ch) * 0.22)
-  const stripH = Math.round(ch * (isPortrait ? 0.87 : 0.86))
-  const stripX = Math.round((cw - stripW) / 2)
-  const stripY = Math.round((ch - stripH) / 2)
-
+  const stripW   = Math.round(Math.min(cw, ch) * 0.22)
   const framePad = Math.max(4, Math.round(stripW * 0.070))
   const gap      = Math.max(2, Math.round(stripW * 0.045))
 
   const photoW = stripW - 2 * framePad
-  const photoH = Math.round((stripH - 2 * framePad - 2 * gap) / 3)
+  const photoH = photoW  // square slots — consistent across all formats
+
+  const stripH = 2 * framePad + 3 * photoH + 2 * gap
+  const stripX = Math.round((cw - stripW) / 2)
+  const stripY = Math.round((ch - stripH) / 2)
 
   return { stripX, stripY, stripW, stripH, framePad, gap, photoW, photoH }
 }
