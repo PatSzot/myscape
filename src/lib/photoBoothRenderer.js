@@ -33,7 +33,7 @@ function getLayout(cw, ch) {
   // Portrait canvas (9:16): wider strip; square (1:1): standard strip
   const isPortrait = aspect < 0.7
 
-  const stripW = Math.round(Math.min(cw, ch) * (isPortrait ? 0.19 : 0.22))
+  const stripW = Math.round(Math.min(cw, ch) * 0.22)
   const stripH = Math.round(ch * (isPortrait ? 0.87 : 0.86))
   const stripX = Math.round((cw - stripW) / 2)
   const stripY = Math.round((ch - stripH) / 2)
