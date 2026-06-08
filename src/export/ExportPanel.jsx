@@ -4,13 +4,14 @@ import LoopTimeline from '../components/LoopTimeline.jsx'
 import '../styles/export.css'
 
 const PRESETS = [
-  { key: 'sphere',    label: 'Sphere'     },
-  { key: 'ring',      label: 'Ring'       },
-  { key: 'helix',     label: 'Helix'      },
-  { key: 'flow',      label: 'Flow'       },
-  { key: 'shuffle',   label: 'Shuffle'    },
-  { key: 'mainStage', label: 'Main Stage' },
-  { key: 'spiral',    label: 'Spiral'     },
+  { key: 'sphere',     label: 'Sphere'      },
+  { key: 'ring',       label: 'Ring'        },
+  { key: 'helix',      label: 'Helix'       },
+  { key: 'flow',       label: 'Flow'        },
+  { key: 'shuffle',    label: 'Shuffle'     },
+  { key: 'mainStage',  label: 'Main Stage'  },
+  { key: 'spiral',     label: 'Spiral'      },
+  { key: 'photoBooth', label: 'Photo Booth' },
 ]
 
 function PhotoCount({ count, isShuffle }) {
@@ -40,7 +41,8 @@ export default function ExportPanel({
   const isShuffle   = presetId === 'shuffle'
   const isMainStage = presetId === 'mainStage'
   const isSpiral    = presetId === 'spiral'
-  const is2D        = isShuffle || isMainStage || isSpiral
+  const isPhotoBooth = presetId === 'photoBooth'
+  const is2D        = isShuffle || isMainStage || isSpiral || isPhotoBooth
 
   return (
     <div>
@@ -91,6 +93,13 @@ export default function ExportPanel({
         </p>
       )}
 
+      {/* Format hint for Photo Booth */}
+      {isPhotoBooth && exportFormat === 'landscape' && (
+        <p className="ep-photo-count" style={{ color: 'rgba(240,180,80,0.7)' }}>
+          Best with Square or Portrait format
+        </p>
+      )}
+
       {/* Photo count */}
       <PhotoCount count={photoCount} isShuffle={isShuffle} />
 
@@ -99,33 +108,37 @@ export default function ExportPanel({
         <BgToggle bgColor={bgColor} onBgChange={onBgChange} />
       </div>
 
-      {/* Composition */}
-      <h3 className="ep-section">Composition</h3>
-      <div className="ep-panel">
-        {!is2D && (
-          <NumberField label="Count"  value={controls.count}  min={1}   max={100} step={1}    onChange={v => setCtrl('count', v)} />
-        )}
-        {!is2D && (
-          <NumberField label="Zoom"   value={controls.zoom}   min={0.4} max={3}   step={0.05} onChange={v => setCtrl('zoom', v)} />
-        )}
-        {!is2D && presetId !== 'flow' && (
-          <NumberField label="Radius" value={controls.radius} min={0.3} max={3}   step={0.05} onChange={v => setCtrl('radius', v)} />
-        )}
-        {!is2D && (
-          <NumberField label="Scale"  value={controls.scale}  min={0.2} max={2}   step={0.05} onChange={v => setCtrl('scale', v)} />
-        )}
-        {!isMainStage && !isSpiral && (
-          <NumberField label="Corners" value={controls.corners} min={0} max={0.5} step={0.01} onChange={v => setCtrl('corners', v)} />
-        )}
-        <NumberField
-          label="Speed"
-          value={controls.speed}
-          min={0.1}
-          max={3.0}
-          step={0.05}
-          onChange={v => setCtrl('speed', v)}
-        />
-      </div>
+      {/* Composition — hidden for Photo Booth (static preset, no controls) */}
+      {!isPhotoBooth && (
+        <>
+          <h3 className="ep-section">Composition</h3>
+          <div className="ep-panel">
+            {!is2D && (
+              <NumberField label="Count"  value={controls.count}  min={1}   max={100} step={1}    onChange={v => setCtrl('count', v)} />
+            )}
+            {!is2D && (
+              <NumberField label="Zoom"   value={controls.zoom}   min={0.4} max={3}   step={0.05} onChange={v => setCtrl('zoom', v)} />
+            )}
+            {!is2D && presetId !== 'flow' && (
+              <NumberField label="Radius" value={controls.radius} min={0.3} max={3}   step={0.05} onChange={v => setCtrl('radius', v)} />
+            )}
+            {!is2D && (
+              <NumberField label="Scale"  value={controls.scale}  min={0.2} max={2}   step={0.05} onChange={v => setCtrl('scale', v)} />
+            )}
+            {!isMainStage && !isSpiral && (
+              <NumberField label="Corners" value={controls.corners} min={0} max={0.5} step={0.01} onChange={v => setCtrl('corners', v)} />
+            )}
+            <NumberField
+              label="Speed"
+              value={controls.speed}
+              min={0.1}
+              max={3.0}
+              step={0.05}
+              onChange={v => setCtrl('speed', v)}
+            />
+          </div>
+        </>
+      )}
 
       {/* Video Length */}
       <h3 className="ep-section">Video Length</h3>

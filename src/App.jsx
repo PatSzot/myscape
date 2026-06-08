@@ -5,6 +5,7 @@ import ShuffleCanvas from './components/ShuffleCanvas.jsx'
 import MainStageCanvas from './components/MainStageCanvas.jsx'
 import SpiralCanvas from './components/SpiralCanvas.jsx'
 import ScapeCanvas from './components/ScapeCanvas.jsx'
+import PhotoBoothCanvas from './components/PhotoBoothCanvas.jsx'
 import LeftPanel from './components/LeftPanel.jsx'
 import RightPanel from './components/RightPanel.jsx'
 import ExportDock, { FORMATS } from './components/ExportDock.jsx'
@@ -97,7 +98,8 @@ export default function App() {
   const shuffleCanvasRef   = useRef(null)
   const mainStageCanvasRef = useRef(null)
   const spiralCanvasRef    = useRef(null)
-  const scapeCanvasRef     = useRef(null)
+  const scapeCanvasRef      = useRef(null)
+  const photoBoothCanvasRef = useRef(null)
   const canvasAreaRef    = useRef(null)
 
   // Core state
@@ -251,13 +253,15 @@ export default function App() {
     const isShuffle      = presetId === 'shuffle'
     const isMainStage    = presetId === 'mainStage'
     const isSpiral       = presetId === 'spiral'
+    const isPhotoBooth   = presetId === 'photoBooth'
     const is3DPreset     = PRESET_IDS.includes(presetId)
     const is2D           = isShuffle || isMainStage || isSpiral
-    const scapeScene         = is3DPreset  ? scapeCanvasRef.current?.getScene()         : null
-    const shuffleRenderer    = isShuffle   ? shuffleCanvasRef.current?.getRenderer()   : null
-    const mainStageRenderer  = isMainStage ? mainStageCanvasRef.current?.getRenderer() : null
-    const spiralRenderer     = isSpiral    ? spiralCanvasRef.current?.getRenderer()    : null
-    if (!scapeScene && !shuffleRenderer && !mainStageRenderer && !spiralRenderer) return
+    const scapeScene          = is3DPreset    ? scapeCanvasRef.current?.getScene()             : null
+    const shuffleRenderer     = isShuffle     ? shuffleCanvasRef.current?.getRenderer()       : null
+    const mainStageRenderer   = isMainStage   ? mainStageCanvasRef.current?.getRenderer()     : null
+    const spiralRenderer      = isSpiral      ? spiralCanvasRef.current?.getRenderer()        : null
+    const photoBoothRenderer  = isPhotoBooth  ? photoBoothCanvasRef.current?.getRenderer()   : null
+    if (!scapeScene && !shuffleRenderer && !mainStageRenderer && !spiralRenderer && !photoBoothRenderer) return
     setIsExporting(true)
     setExportPct(0)
     try {
@@ -267,6 +271,7 @@ export default function App() {
         shuffleRenderer,
         mainStageRenderer,
         spiralRenderer,
+        photoBoothRenderer,
         fps,
         loopS,
         format: FORMATS[exportFormat].export,
@@ -285,10 +290,11 @@ export default function App() {
   // ── Render ─────────────────────────────────────────────────────────────────
   const panelBg      = theme === 'dark' ? '#191812' : '#F0EDE4'
   const isExport     = mode === 'export'
-  const showShuffle   = isExport && presetId === 'shuffle'
-  const showMainStage = isExport && presetId === 'mainStage'
-  const showSpiral    = isExport && presetId === 'spiral'
-  const showScape     = isExport && PRESET_IDS.includes(presetId)
+  const showShuffle    = isExport && presetId === 'shuffle'
+  const showMainStage  = isExport && presetId === 'mainStage'
+  const showSpiral     = isExport && presetId === 'spiral'
+  const showScape      = isExport && PRESET_IDS.includes(presetId)
+  const showPhotoBooth = isExport && presetId === 'photoBooth'
   // In export mode, fall back to the MYSCAPE letter photos when no user photos are loaded
   const exportImages = images.length > 0 ? images : DEFAULT_EXPORT_IMAGES
 
@@ -336,7 +342,7 @@ export default function App() {
             : { position: 'absolute', inset: 0 }
           }
         >
-          <div style={{ position: 'absolute', inset: 0, display: (showShuffle || showMainStage || showSpiral || showScape) ? 'none' : 'block' }}>
+          <div style={{ position: 'absolute', inset: 0, display: (showShuffle || showMainStage || showSpiral || showScape || showPhotoBooth) ? 'none' : 'block' }}>
             <LandscapeCanvas
               images={isExport ? exportImages : images}
               corner={corner}
@@ -382,6 +388,15 @@ export default function App() {
                 photos={exportImages}
                 bgColor={bgColor}
                 speed={exportControls.speed}
+              />
+            </div>
+          )}
+          {showPhotoBooth && (
+            <div style={{ position: 'absolute', inset: 0 }}>
+              <PhotoBoothCanvas
+                ref={photoBoothCanvasRef}
+                photos={exportImages}
+                bgColor={bgColor}
               />
             </div>
           )}

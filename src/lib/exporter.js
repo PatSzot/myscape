@@ -8,9 +8,13 @@ import { Output, CanvasSource, BufferTarget, Mp4OutputFormat } from 'mediabunny'
  * Pass `scapeScene`        for sphere/ring/helix/flow presets (OrthographicCamera).
  * Pass `scene`             for the explore/landscape mode (real-time capture).
  */
-export async function exportVideo({ scapeScene, scene, shuffleRenderer, mainStageRenderer, spiralRenderer, fps, loopS, format, bgColor, onProgress }) {
+export async function exportVideo({ scapeScene, scene, shuffleRenderer, mainStageRenderer, spiralRenderer, photoBoothRenderer, fps, loopS, format, bgColor, onProgress }) {
   if (typeof VideoEncoder === 'undefined') {
     throw new Error('VideoEncoder API not available. Use Chrome 94+, Edge 94+, or Firefox 130+.')
+  }
+
+  if (photoBoothRenderer) {
+    return export2D({ renderer: photoBoothRenderer, fps, loopS, format, bgColor, onProgress, label: 'photobooth' })
   }
 
   if (spiralRenderer) {
