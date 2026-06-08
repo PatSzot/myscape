@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import 'remixicon/fonts/remixicon.css'
 import '../styles/export.css'
 
 export default function ShareDock({ onShare }) {
@@ -26,9 +27,9 @@ export default function ShareDock({ onShare }) {
 
   const label =
     state === 'sharing' ? 'Creating link…' :
-    state === 'copied'  ? 'Link Copied!' :
+    state === 'copied'  ? 'Link Copied!'   :
     state === 'error'   ? 'Copy link manually:' :
-                          'Share Scape'
+                          'Create a share link'
 
   return (
     <div className="ep-dock">
@@ -39,36 +40,17 @@ export default function ShareDock({ onShare }) {
           onClick={handleShare}
           style={{ flex: 1 }}
         >
-          {state !== 'sharing' && state !== 'copied' && (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-              strokeLinecap="round" strokeLinejoin="round"
-              style={{ width: 16, height: 16, flexShrink: 0 }}>
-              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/>
-              <circle cx="18" cy="19" r="3"/>
-              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-            </svg>
-          )}
-          {state === 'copied' && (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-              strokeLinecap="round" strokeLinejoin="round"
-              style={{ width: 16, height: 16, flexShrink: 0 }}>
-              <polyline points="20 6 9 17 4 12"/>
-            </svg>
+          {state === 'idle' && (
+            <i className="ri-global-line" style={{ fontSize: 18, flexShrink: 0 }} />
           )}
           {state === 'sharing' && (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-              strokeLinecap="round" strokeLinejoin="round"
-              style={{ width: 16, height: 16, flexShrink: 0, opacity: 0.6 }}>
-              <line x1="12" y1="2" x2="12" y2="6"/>
-              <line x1="12" y1="18" x2="12" y2="22"/>
-              <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/>
-              <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/>
-              <line x1="2" y1="12" x2="6" y2="12"/>
-              <line x1="18" y1="12" x2="22" y2="12"/>
-              <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/>
-              <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/>
-            </svg>
+            <i className="ri-loader-4-line" style={{ fontSize: 18, flexShrink: 0, opacity: 0.6 }} />
+          )}
+          {state === 'copied' && (
+            <i className="ri-check-line" style={{ fontSize: 18, flexShrink: 0 }} />
+          )}
+          {state === 'error' && (
+            <i className="ri-global-line" style={{ fontSize: 18, flexShrink: 0 }} />
           )}
           <span className="ep-cta-label">{label}</span>
         </button>

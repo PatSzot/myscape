@@ -6,16 +6,16 @@ import '../styles/export.css'
 const MONO = '"IBM Plex Mono", monospace'
 
 const PRESETS = [
-  { key: 'landscape',  label: 'Landscape'   },
-  { key: 'sphere',     label: 'Sphere'      },
-  { key: 'ring',       label: 'Ring'        },
-  { key: 'helix',      label: 'Helix'       },
-  { key: 'flow',       label: 'Flow'        },
-  { key: 'shuffle',    label: 'Shuffle'     },
-  { key: 'mainStage',  label: 'Main Stage'  },
-  { key: 'spiral',     label: 'Spiral'      },
-  { key: 'photoBooth', label: 'Photo Booth' },
-  { key: 'cube',       label: 'Cube'        },
+  { key: 'landscape',  label: 'Landscape',   share: true  },
+  { key: 'sphere',     label: 'Sphere',       share: false },
+  { key: 'ring',       label: 'Ring',         share: false },
+  { key: 'helix',      label: 'Helix',        share: false },
+  { key: 'flow',       label: 'Flow',         share: false },
+  { key: 'shuffle',    label: 'Shuffle',      share: false },
+  { key: 'mainStage',  label: 'Main Stage',   share: false },
+  { key: 'spiral',     label: 'Spiral',       share: false },
+  { key: 'photoBooth', label: 'Photo Booth',  share: false },
+  { key: 'cube',       label: 'Cube',         share: true  },
 ]
 
 export default function LeftPanel({
@@ -163,7 +163,13 @@ export default function LeftPanel({
                         transition: 'background 0.1s',
                       }}
                     >
-                      <span>{p.label}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                        <i
+                          className={p.share ? 'ri-global-line' : 'ri-video-line'}
+                          style={{ fontSize: 14, flexShrink: 0, opacity: isActive ? 0.8 : 0.45 }}
+                        />
+                        {p.label}
+                      </span>
                       {isActive && (
                         <i className="ri-check-line" style={{ fontSize: 14, flexShrink: 0 }} />
                       )}
