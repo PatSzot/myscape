@@ -8,10 +8,7 @@ import ScapeCanvas from './components/ScapeCanvas.jsx'
 import PhotoBoothCanvas from './components/PhotoBoothCanvas.jsx'
 import CubeCanvas from './components/CubeCanvas.jsx'
 import LeftPanel from './components/LeftPanel.jsx'
-import RightPanel from './components/RightPanel.jsx'
-import ExportDock, { FORMATS } from './components/ExportDock.jsx'
-import ImageModal from './components/ImageModal.jsx'
-import { exportVideo } from './lib/exporter.js'
+import ShareDock from './components/ShareDock.jsx'
 import { PRESET_IDS, PRESET_DEFAULTS } from './lib/presets.js'
 import './styles/layout.css'
 import './styles/export.css'
@@ -87,69 +84,35 @@ const _params   = new URLSearchParams(window.location.search)
 const SHARE_ID  = _params.get('s')
 const VIEW_MODE = _params.has('view') || !!SHARE_ID
 
-// Default images shown in export mode when no photos are uploaded
-const DEFAULT_EXPORT_IMAGES = ['M', 'Y', 'S', 'C', 'A', 'P', 'E'].map(l => ({ url: `/${l}.jpg`, meta: {} }))
+// Default images shown when no photos are uploaded
+const DEFAULT_IMAGES = ['M', 'Y', 'S', 'C', 'A', 'P', 'E'].map(l => ({ url: `/${l}.jpg`, meta: {} }))
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const photoInputRef    = useRef(null)
-  const poolRef          = useRef([])
-  const sceneRef         = useRef(null)
+  const photoInputRef      = useRef(null)
+  const poolRef            = useRef([])
   const shuffleCanvasRef   = useRef(null)
   const mainStageCanvasRef = useRef(null)
   const spiralCanvasRef    = useRef(null)
-  const scapeCanvasRef      = useRef(null)
+  const scapeCanvasRef     = useRef(null)
   const photoBoothCanvasRef = useRef(null)
-  const cubeCanvasRef       = useRef(null)
-  const canvasAreaRef    = useRef(null)
+  const cubeCanvasRef      = useRef(null)
 
   // Core state
   const [images,  setImages]  = useState([])
   const [theme,   setTheme]   = useState('dark')
-  const [corner,  setCorner]  = useState(0.0)
 
-  // Mode
-  const [mode, setMode] = useState('explore')
-
-  // Export state
-  const [bgColor,      setBgColor]      = useState('#0e0c08')
-  const [exportFormat, setExportFormat] = useState('square')
-  const [fps,          setFps]          = useState(30)
-  const [loopS,        setLoopS]        = useState(8.0)
-  const [presetId,     setPresetId]     = useState('sphere')
-  const [exportControls, setExportControls] = useState(PRESET_DEFAULTS['sphere'])
-  const [isExporting,    setIsExporting]    = useState(false)
-  const [exportPct,      setExportPct]      = useState(0)
-  const [imageModalOpen, setImageModalOpen] = useState(false)
-  const [previewDims,    setPreviewDims]    = useState({ width: 800, height: 800 })
+  // Canvas state
+  const [bgColor,        setBgColor]        = useState('#0e0c08')
+  const [presetId,       setPresetId]       = useState('scape')
+  const [exportControls, setExportControls] = useState(PRESET_DEFAULTS['scape'])
+  const loopS = 8.0  // fixed spin duration for Cube
 
   // ── Body background ────────────────────────────────────────────────────────
   useEffect(() => {
     document.body.style.background = theme === 'dark' ? '#191812' : '#F0EDE4'
   }, [theme])
-
-  // ── Preview canvas dimensions (export mode only) ────────────────────────────
-  useEffect(() => {
-    if (mode !== 'export') return
-    const el = canvasAreaRef.current
-    if (!el) return
-    function compute() {
-      const { width: W, height: H } = el.getBoundingClientRect()
-      const PADDING = 32
-      const maxW = Math.max(1, W - PADDING * 2)
-      const maxH = Math.max(1, H - PADDING * 2)
-      const ratio = FORMATS[exportFormat]?.ratio ?? 1
-      let pw, ph
-      if (maxW / maxH > ratio) { ph = maxH; pw = Math.round(ph * ratio) }
-      else                      { pw = maxW; ph = Math.round(pw / ratio) }
-      setPreviewDims({ width: pw, height: ph })
-    }
-    compute()
-    const ro = new ResizeObserver(compute)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [mode, exportFormat])
 
   // ── Load shared scape ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -157,9 +120,8 @@ export default function App() {
     fetch(`/api/share?id=${SHARE_ID}`)
       .then(r => r.ok ? r.json() : Promise.reject(new Error(`API ${r.status}`)))
       .then(({ images: imgs = [], settings = {} }) => {
-        if (settings.theme)  setTheme(settings.theme)
-        if (settings.corner != null) setCorner(settings.corner)
-        else if (settings.corners === 'rounded') setCorner(0.04)
+        if (settings.bgColor) setBgColor(settings.bgColor)
+        if (settings.corners != null) setExportControls(prev => ({ ...prev, corners: settings.corners }))
         if (imgs.length > 0) {
           poolRef.current = imgs
           setImages([...imgs])
@@ -168,9 +130,8 @@ export default function App() {
       .catch(err => console.error('Failed to load shared scape:', err))
   }, [])
 
-  // ── Keyboard shortcuts (export mode only) ─────────────────────────────────
+  // ── Keyboard shortcuts ─────────────────────────────────────────────────────
   useEffect(() => {
-    if (mode !== 'export') return
     function onKey(e) {
       const tag = e.target?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) return
@@ -181,7 +142,6 @@ export default function App() {
         else if (presetId === 'shuffle')            shuffleCanvasRef.current?.togglePause()
         else if (presetId === 'cube')               cubeCanvasRef.current?.togglePause()
         else if (PRESET_IDS.includes(presetId))     scapeCanvasRef.current?.togglePause()
-        else                                        sceneRef.current?.togglePause()
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
         e.preventDefault()
@@ -194,7 +154,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [mode])
+  }, [presetId])
 
   // ── Photo pool helpers ─────────────────────────────────────────────────────
   function applyPool(next) {
@@ -208,21 +168,6 @@ export default function App() {
     applyPool([...poolRef.current, ...fresh])
   }
 
-  function handleDelete(url) {
-    URL.revokeObjectURL(url)
-    applyPool(poolRef.current.filter(img => img.url !== url))
-  }
-
-  async function handleRotate(url) {
-    const idx = poolRef.current.findIndex(img => img.url === url)
-    if (idx === -1) return
-    const rotated = await rotateImage90(url)
-    URL.revokeObjectURL(url)
-    const next = [...poolRef.current]
-    next[idx] = { ...next[idx], url: rotated }
-    applyPool(next)
-  }
-
   // ── Share link ─────────────────────────────────────────────────────────────
   async function handleCopyLink() {
     const entries = await Promise.all(
@@ -234,7 +179,10 @@ export default function App() {
     const res = await fetch('/api/share', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entries, settings: { theme, corner } }),
+      body: JSON.stringify({
+        entries,
+        settings: { bgColor, corners: exportControls.corners ?? 0 },
+      }),
     })
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
@@ -244,71 +192,33 @@ export default function App() {
     return `${window.location.origin}/?view&s=${id}`
   }
 
-  // ── Preset switch — reset controls to per-preset defaults ─────────────────
+  // ── Preset switch ──────────────────────────────────────────────────────────
   function handlePresetChange(id) {
     setPresetId(id)
     if (PRESET_DEFAULTS[id]) setExportControls(PRESET_DEFAULTS[id])
   }
 
-  // ── Export video ───────────────────────────────────────────────────────────
-  async function handleExport() {
-    if (isExporting || images.length === 0) return
-    const isShuffle      = presetId === 'shuffle'
-    const isMainStage    = presetId === 'mainStage'
-    const isSpiral       = presetId === 'spiral'
-    const isPhotoBooth   = presetId === 'photoBooth'
-    const isCube         = presetId === 'cube'
-    const is3DPreset     = PRESET_IDS.includes(presetId)
-    const is2D           = isShuffle || isMainStage || isSpiral
-    const scapeScene          = is3DPreset    ? scapeCanvasRef.current?.getScene()             : null
-    const shuffleRenderer     = isShuffle     ? shuffleCanvasRef.current?.getRenderer()       : null
-    const mainStageRenderer   = isMainStage   ? mainStageCanvasRef.current?.getRenderer()     : null
-    const spiralRenderer      = isSpiral      ? spiralCanvasRef.current?.getRenderer()        : null
-    const photoBoothRenderer  = isPhotoBooth  ? photoBoothCanvasRef.current?.getRenderer()   : null
-    const cubeScene           = isCube        ? cubeCanvasRef.current?.getScene()             : null
-    if (!scapeScene && !shuffleRenderer && !mainStageRenderer && !spiralRenderer && !photoBoothRenderer && !cubeScene) return
-    setIsExporting(true)
-    setExportPct(0)
-    try {
-      await exportVideo({
-        scapeScene: scapeScene || cubeScene,
-        scene: null,
-        shuffleRenderer,
-        mainStageRenderer,
-        spiralRenderer,
-        photoBoothRenderer,
-        fps,
-        loopS,
-        format: FORMATS[exportFormat].export,
-        bgColor,
-        onProgress: p => setExportPct(p),
-      })
-    } catch (err) {
-      console.error('Export failed:', err)
-      alert(err.message || 'Export failed. Try Chrome 94+, Edge 94+, or Firefox 130+.')
-    } finally {
-      setIsExporting(false)
-      setExportPct(0)
-    }
-  }
-
   // ── Render ─────────────────────────────────────────────────────────────────
-  const panelBg      = theme === 'dark' ? '#191812' : '#F0EDE4'
-  const isExport     = mode === 'export'
-  const showShuffle    = isExport && presetId === 'shuffle'
-  const showMainStage  = isExport && presetId === 'mainStage'
-  const showSpiral     = isExport && presetId === 'spiral'
-  const showScape      = isExport && PRESET_IDS.includes(presetId)
-  const showPhotoBooth = isExport && presetId === 'photoBooth'
-  const showCube       = isExport && presetId === 'cube'
-  // In export mode, fall back to the MYSCAPE letter photos when no user photos are loaded
-  const exportImages = images.length > 0 ? images : DEFAULT_EXPORT_IMAGES
+  const panelBg = theme === 'dark' ? '#191812' : '#F0EDE4'
+
+  // Canvas routing — each preset maps to its own canvas
+  const showLandscape  = presetId === 'scape' || VIEW_MODE
+  const show3DScape    = !VIEW_MODE && PRESET_IDS.includes(presetId)
+  const showShuffle    = !VIEW_MODE && presetId === 'shuffle'
+  const showMainStage  = !VIEW_MODE && presetId === 'mainStage'
+  const showSpiral     = !VIEW_MODE && presetId === 'spiral'
+  const showPhotoBooth = !VIEW_MODE && presetId === 'photoBooth'
+  const showCube       = !VIEW_MODE && presetId === 'cube'
+
+  // Use default letter images when no photos loaded
+  const displayImages = images.length > 0 ? images : DEFAULT_IMAGES
 
   return (
-    <div className={`app-layout${VIEW_MODE ? ' view-mode' : ''}`}
+    <div
+      className={`app-layout${VIEW_MODE ? ' view-mode' : ''}`}
       data-theme={theme}
-      style={{ background: panelBg }}>
-
+      style={{ background: panelBg }}
+    >
       <input
         ref={photoInputRef} type="file" accept="image/*" multiple
         onChange={e => {
@@ -323,41 +233,35 @@ export default function App() {
 
       {!VIEW_MODE && (
         <LeftPanel
-          theme={theme}   onThemeChange={setTheme}
-          corner={corner} onCornerChange={setCorner}
+          theme={theme}
           images={images}
           onUploadClick={() => photoInputRef.current?.click()}
-          mode={mode}     onModeChange={setMode}
           presetId={presetId}       onPresetChange={handlePresetChange}
           bgColor={bgColor}         onBgChange={setBgColor}
           exportControls={exportControls} onExportControlsChange={setExportControls}
-          loopS={loopS}             onLoopChange={setLoopS}
-          exportFormat={exportFormat}
         />
       )}
 
-      <div className={`canvas-area${isExporting ? ' is-exporting' : ''}`} ref={canvasAreaRef}>
-        {/* Canvas wrapper: fills area in explore, constrained to aspect ratio in export */}
-        <div
-          className={isExport ? 'export-canvas-wrapper' : undefined}
-          style={isExport
-            ? { width: previewDims.width, height: previewDims.height }
-            : { position: 'absolute', inset: 0 }
-          }
-        >
-          <div style={{ position: 'absolute', inset: 0, display: (showShuffle || showMainStage || showSpiral || showScape || showPhotoBooth || showCube) ? 'none' : 'block' }}>
-            <LandscapeCanvas
-              images={isExport ? exportImages : images}
-              corner={corner}
-              bgColor={bgColor}
-              onSceneReady={scene => { sceneRef.current = scene }}
-            />
-          </div>
-          {showScape && (
+      <div className="canvas-area">
+        <div style={{ position: 'absolute', inset: 0 }}>
+
+          {/* Scape — LandscapeCanvas (infinite particle canvas) */}
+          {showLandscape && (
+            <div style={{ position: 'absolute', inset: 0 }}>
+              <LandscapeCanvas
+                images={images}
+                corner={exportControls.corners ?? 0}
+                bgColor={bgColor}
+              />
+            </div>
+          )}
+
+          {/* 3D Scapes — sphere / ring / helix / flow */}
+          {show3DScape && (
             <div style={{ position: 'absolute', inset: 0 }}>
               <ScapeCanvas
                 ref={scapeCanvasRef}
-                photos={exportImages}
+                photos={displayImages}
                 bgColor={bgColor}
                 presetId={presetId}
                 controls={exportControls}
@@ -365,56 +269,63 @@ export default function App() {
               />
             </div>
           )}
+
           {showShuffle && (
             <div style={{ position: 'absolute', inset: 0 }}>
               <ShuffleCanvas
                 ref={shuffleCanvasRef}
-                images={exportImages}
+                images={displayImages}
                 cornerFraction={exportControls.corners}
                 speed={exportControls.speed}
               />
             </div>
           )}
+
           {showMainStage && (
             <div style={{ position: 'absolute', inset: 0 }}>
               <MainStageCanvas
                 ref={mainStageCanvasRef}
-                photos={exportImages}
+                photos={displayImages}
                 bgColor={bgColor}
                 speed={exportControls.speed}
               />
             </div>
           )}
+
           {showSpiral && (
             <div style={{ position: 'absolute', inset: 0 }}>
               <SpiralCanvas
                 ref={spiralCanvasRef}
-                photos={exportImages}
+                photos={displayImages}
                 bgColor={bgColor}
                 speed={exportControls.speed}
               />
             </div>
           )}
+
           {showPhotoBooth && (
             <div style={{ position: 'absolute', inset: 0 }}>
               <PhotoBoothCanvas
                 ref={photoBoothCanvasRef}
-                photos={exportImages}
+                photos={displayImages}
                 bgColor={bgColor}
               />
             </div>
           )}
+
           {showCube && (
             <div style={{ position: 'absolute', inset: 0 }}>
               <CubeCanvas
                 ref={cubeCanvasRef}
-                photos={exportImages}
+                photos={displayImages}
                 bgColor={bgColor}
                 loopS={loopS}
               />
             </div>
           )}
+
         </div>
+
         {!VIEW_MODE && images.length === 0 && (
           <div
             onClick={() => photoInputRef.current?.click()}
@@ -436,45 +347,8 @@ export default function App() {
         )}
       </div>
 
-      {!VIEW_MODE && !isExport && <RightPanel theme={theme} />}
-
-      {!VIEW_MODE && isExport && (
-        <>
-          {/* Keyboard hints */}
-          <div className="kb-overlay" aria-hidden="true">
-            <span className="kb-shortcut">
-              <kbd>CTRL</kbd><kbd>Z</kbd>
-              <span className="kb-label">Undo</span>
-            </span>
-            <span className="kb-dot" />
-            <span className="kb-shortcut">
-              <kbd>SPACE</kbd>
-              <span className="kb-label">Preview</span>
-            </span>
-          </div>
-
-          {/* Export Dock */}
-          <ExportDock
-            images={images}
-            format={exportFormat} onFormatChange={setExportFormat}
-            fps={fps}             onFpsChange={setFps}
-            isExporting={isExporting}
-            exportPct={exportPct}
-            onExport={handleExport}
-            onImagePreviewOpen={() => setImageModalOpen(true)}
-            onUploadClick={() => photoInputRef.current?.click()}
-          />
-
-          {/* Image Modal */}
-          {imageModalOpen && (
-            <ImageModal
-              images={images}
-              onClose={() => setImageModalOpen(false)}
-              onDelete={handleDelete}
-              onUploadClick={() => photoInputRef.current?.click()}
-            />
-          )}
-        </>
+      {!VIEW_MODE && (
+        <ShareDock onShare={handleCopyLink} />
       )}
 
     </div>

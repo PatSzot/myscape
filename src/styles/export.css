@@ -434,6 +434,10 @@
   max-width: 3.8ch;
   opacity: 0.6;
 }
+.ep-cta--share { gap: 10px; justify-content: center; letter-spacing: 0.04em; }
+.ep-cta--success { background: rgba(80,200,120,0.18); color: rgba(160,240,180,0.95); }
+.ep-cta--success:hover { background: rgba(80,200,120,0.24); }
+.ep-cta-label { pointer-events: none; }
 
 /* ─── Image Modal ──────────────────────────────────────────────────────────── */
 

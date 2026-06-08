@@ -5,17 +5,25 @@ import '../styles/export.css'
 
 const MONO = '"IBM Plex Mono", monospace'
 
+const PRESETS = [
+  { key: 'scape',      label: 'Scape'       },
+  { key: 'sphere',     label: 'Sphere'      },
+  { key: 'ring',       label: 'Ring'        },
+  { key: 'helix',      label: 'Helix'       },
+  { key: 'flow',       label: 'Flow'        },
+  { key: 'shuffle',    label: 'Shuffle'     },
+  { key: 'mainStage',  label: 'Main Stage'  },
+  { key: 'spiral',     label: 'Spiral'      },
+  { key: 'photoBooth', label: 'Photo Booth' },
+  { key: 'cube',       label: 'Cube'        },
+]
+
 export default function LeftPanel({
   theme,
-  corner, onCornerChange,
   images, onUploadClick,
-  mode, onModeChange,
-  // Export / preset props
   presetId, onPresetChange,
   bgColor, onBgChange,
   exportControls, onExportControlsChange,
-  loopS, onLoopChange,
-  exportFormat,
 }) {
   const [isOpen, setIsOpen] = useState(() => window.innerWidth >= 1024)
   const panelRef  = useRef(null)
@@ -48,9 +56,7 @@ export default function LeftPanel({
   }, [isOpen])
 
   const isDark = theme === 'dark'
-  const muted  = isDark ? 'rgba(240,237,228,0.42)' : 'rgba(26,26,24,0.38)'
   const text   = isDark ? '#f0ede4' : '#1a1a18'
-  const rowBg  = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'
 
   return (
     <>
@@ -68,10 +74,10 @@ export default function LeftPanel({
         ref={panelRef}
         className={`panel panel--left ${isOpen ? 'panel--visible' : 'panel--hidden'} panel--wide`}
       >
-        {/* Fixed header: Upload button + mode switcher */}
+        {/* Fixed header: Upload button + Preset dropdown */}
         <div style={{ padding: '16px 16px 0', flexShrink: 0 }}>
 
-          {/* Upload Photos — primary CTA at the very top */}
+          {/* Upload Photos */}
           <button
             onClick={onUploadClick}
             style={{
@@ -91,40 +97,51 @@ export default function LeftPanel({
               : 'UPLOAD PHOTOS'}
           </button>
 
-          {/* Mode switcher */}
-          <div className="mode-switcher" style={{ margin: '0 0 4px' }}>
-            {[
-              { id: 'explore', icon: 'ri-compass-3-line', label: 'Explore' },
-              { id: 'export',  icon: 'ri-film-line',      label: 'Export'  },
-            ].map(({ id, icon, label }) => (
-              <button
-                key={id}
-                className={`mode-btn ${mode === id ? 'mode-btn--active' : ''}`}
-                onClick={() => onModeChange(id)}
-              >
-                <i className={icon} />
-                {label}
-              </button>
-            ))}
+          {/* Preset dropdown */}
+          <div style={{ position: 'relative', marginBottom: 10 }}>
+            <select
+              value={presetId}
+              onChange={e => onPresetChange(e.target.value)}
+              style={{
+                appearance: 'none',
+                background: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)',
+                border: 'none',
+                borderRadius: 10,
+                color: text,
+                cursor: 'pointer',
+                fontFamily: MONO,
+                fontSize: 12,
+                letterSpacing: '0.07em',
+                fontWeight: 500,
+                outline: 'none',
+                padding: '0 40px 0 16px',
+                width: '100%',
+                height: 50,
+              }}
+            >
+              {PRESETS.map(p => (
+                <option key={p.key} value={p.key} style={{ background: '#1a1812' }}>{p.label}</option>
+              ))}
+            </select>
+            <span style={{
+              pointerEvents: 'none', position: 'absolute', right: 14, top: '50%',
+              transform: 'translateY(-50%)',
+              color: isDark ? 'rgba(240,237,228,0.4)' : 'rgba(26,26,24,0.35)',
+              fontSize: 14,
+            }}>▾</span>
           </div>
+
         </div>
 
-        {/* Scrollable panel body — same content for both modes */}
+        {/* Scrollable panel body */}
         <div className="panel-scroll" style={{ flex: 1, overflowY: 'auto', padding: '0 16px 16px' }}>
           <ExportPanelContent
-            mode={mode}
             presetId={presetId}
-            onPresetChange={onPresetChange}
             bgColor={bgColor}
             onBgChange={onBgChange}
             controls={exportControls}
             onControlsChange={onExportControlsChange}
-            loopS={loopS}
-            onLoopChange={onLoopChange}
             photoCount={images.length}
-            exportFormat={exportFormat}
-            corner={corner}
-            onCornerChange={onCornerChange}
           />
         </div>
       </aside>
