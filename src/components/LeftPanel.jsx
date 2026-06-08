@@ -6,7 +6,7 @@ import '../styles/export.css'
 const MONO = '"IBM Plex Mono", monospace'
 
 export default function LeftPanel({
-  theme, onThemeChange,
+  theme,
   corner, onCornerChange,
   images, onUploadClick,
   mode, onModeChange,
@@ -124,8 +124,6 @@ export default function LeftPanel({
             exportFormat={exportFormat}
             corner={corner}
             onCornerChange={onCornerChange}
-            theme={theme}
-            onThemeChange={onThemeChange}
           />
         </div>
       </aside>

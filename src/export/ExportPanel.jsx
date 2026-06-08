@@ -22,14 +22,13 @@ function PhotoCount({ count }) {
   return <p className="ep-photo-count">{text}</p>
 }
 
-function StyleToggleRow({ label, on, onClick }) {
+function CornersToggle({ on, onClick }) {
   return (
     <div
-      className="ep-style-row"
       onClick={onClick}
-      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 36, cursor: 'pointer' }}
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 36, cursor: 'pointer', padding: '0 2px' }}
     >
-      <span className="ep-field-label">{label}</span>
+      <span className="ep-field-label">Rounded Corners</span>
       <div style={{
         width: 32, height: 18, borderRadius: 9, flexShrink: 0, position: 'relative',
         background: on ? 'rgba(240,237,228,0.9)' : 'rgba(255,255,255,0.14)',
@@ -54,7 +53,6 @@ export default function ExportPanel({
   photoCount = 0,
   exportFormat,
   corner = 0, onCornerChange,
-  theme = 'dark', onThemeChange,
 }) {
   function setCtrl(key, val) {
     onControlsChange({ ...controls, [key]: val })
@@ -108,21 +106,17 @@ export default function ExportPanel({
         </div>
       </div>
 
-      {/* Portrait hint for Main Stage */}
+      {/* Format hints */}
       {isMainStage && exportFormat !== 'portrait' && (
         <p className="ep-photo-count" style={{ color: 'rgba(240,180,80,0.7)' }}>
           Best with Portrait (9:16) format
         </p>
       )}
-
-      {/* Square hint for Spiral */}
       {isSpiral && exportFormat !== 'square' && (
         <p className="ep-photo-count" style={{ color: 'rgba(240,180,80,0.7)' }}>
           Spiral is designed for 1:1 square format
         </p>
       )}
-
-      {/* Format hint for Photo Booth */}
       {isPhotoBooth && exportFormat === 'landscape' && (
         <p className="ep-photo-count" style={{ color: 'rgba(240,180,80,0.7)' }}>
           Best with Square or Portrait format
@@ -136,6 +130,9 @@ export default function ExportPanel({
       <div style={{ marginBottom: 4 }}>
         <BgToggle bgColor={bgColor} onBgChange={onBgChange} />
       </div>
+
+      {/* Rounded Corners — above Composition */}
+      <CornersToggle on={corner > 0} onClick={toggleCorners} />
 
       {/* Composition — hidden for Photo Booth and Cube */}
       {!isPhotoBooth && !isCube && (
@@ -174,21 +171,6 @@ export default function ExportPanel({
       <div className="ep-panel">
         <NumberField label="Loop" value={loopS} min={1} max={24} step={0.1} onChange={onLoopChange} unit=" s" />
         <LoopTimeline loopS={loopS} />
-      </div>
-
-      {/* Style */}
-      <h3 className="ep-section">Style</h3>
-      <div className="ep-panel">
-        <StyleToggleRow
-          label="Rounded Corners"
-          on={corner > 0}
-          onClick={toggleCorners}
-        />
-        <StyleToggleRow
-          label="Dark Mode"
-          on={theme === 'dark'}
-          onClick={() => onThemeChange?.(theme === 'dark' ? 'light' : 'dark')}
-        />
       </div>
     </div>
   )
