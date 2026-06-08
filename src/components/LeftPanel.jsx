@@ -112,6 +112,7 @@ export default function LeftPanel({
         {/* Scrollable panel body — same content for both modes */}
         <div className="panel-scroll" style={{ flex: 1, overflowY: 'auto', padding: '0 16px 16px' }}>
           <ExportPanelContent
+            mode={mode}
             presetId={presetId}
             onPresetChange={onPresetChange}
             bgColor={bgColor}

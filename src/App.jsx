@@ -295,12 +295,12 @@ export default function App() {
   // ── Render ─────────────────────────────────────────────────────────────────
   const panelBg      = theme === 'dark' ? '#191812' : '#F0EDE4'
   const isExport     = mode === 'export'
-  const showShuffle    = presetId === 'shuffle'
-  const showMainStage  = presetId === 'mainStage'
-  const showSpiral     = presetId === 'spiral'
-  const showScape      = PRESET_IDS.includes(presetId)
-  const showPhotoBooth = presetId === 'photoBooth'
-  const showCube       = presetId === 'cube'
+  const showShuffle    = isExport && presetId === 'shuffle'
+  const showMainStage  = isExport && presetId === 'mainStage'
+  const showSpiral     = isExport && presetId === 'spiral'
+  const showScape      = isExport && PRESET_IDS.includes(presetId)
+  const showPhotoBooth = isExport && presetId === 'photoBooth'
+  const showCube       = isExport && presetId === 'cube'
   // In export mode, fall back to the MYSCAPE letter photos when no user photos are loaded
   const exportImages = images.length > 0 ? images : DEFAULT_EXPORT_IMAGES
 

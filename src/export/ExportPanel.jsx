@@ -46,6 +46,7 @@ function CornersToggle({ on, onClick }) {
 }
 
 export default function ExportPanel({
+  mode = 'export',
   presetId, onPresetChange,
   bgColor, onBgChange,
   controls, onControlsChange,
@@ -54,6 +55,7 @@ export default function ExportPanel({
   exportFormat,
   corner = 0, onCornerChange,
 }) {
+  const isExportMode = mode === 'export'
   function setCtrl(key, val) {
     onControlsChange({ ...controls, [key]: val })
   }
@@ -73,54 +75,58 @@ export default function ExportPanel({
 
   return (
     <div>
-      {/* Preset */}
-      <div className="ep-field ep-field--inline" style={{ marginBottom: 4 }}>
-        <span className="ep-field-label">Preset</span>
-        <div className="ep-field-value">
-          <div style={{ position: 'relative' }}>
-            <select
-              value={presetId}
-              onChange={e => onPresetChange(e.target.value)}
-              style={{
-                appearance: 'none',
-                background: 'rgba(255,255,255,0.08)',
-                border: 'none',
-                borderRadius: 6,
-                color: 'rgba(240,237,228,0.9)',
-                cursor: 'pointer',
-                fontFamily: '"IBM Plex Mono", monospace',
-                fontSize: 11,
-                outline: 'none',
-                padding: '4px 22px 4px 8px',
-              }}
-            >
-              {PRESETS.map(p => (
-                <option key={p.key} value={p.key} style={{ background: '#1a1812' }}>{p.label}</option>
-              ))}
-            </select>
-            <span style={{
-              pointerEvents: 'none', position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
-              color: 'rgba(240,237,228,0.4)', fontSize: 10,
-            }}>▾</span>
+      {/* Preset — Export mode only */}
+      {isExportMode && (
+        <>
+          <div className="ep-field ep-field--inline" style={{ marginBottom: 4 }}>
+            <span className="ep-field-label">Preset</span>
+            <div className="ep-field-value">
+              <div style={{ position: 'relative' }}>
+                <select
+                  value={presetId}
+                  onChange={e => onPresetChange(e.target.value)}
+                  style={{
+                    appearance: 'none',
+                    background: 'rgba(255,255,255,0.08)',
+                    border: 'none',
+                    borderRadius: 6,
+                    color: 'rgba(240,237,228,0.9)',
+                    cursor: 'pointer',
+                    fontFamily: '"IBM Plex Mono", monospace',
+                    fontSize: 11,
+                    outline: 'none',
+                    padding: '4px 22px 4px 8px',
+                  }}
+                >
+                  {PRESETS.map(p => (
+                    <option key={p.key} value={p.key} style={{ background: '#1a1812' }}>{p.label}</option>
+                  ))}
+                </select>
+                <span style={{
+                  pointerEvents: 'none', position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
+                  color: 'rgba(240,237,228,0.4)', fontSize: 10,
+                }}>▾</span>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Format hints */}
-      {isMainStage && exportFormat !== 'portrait' && (
-        <p className="ep-photo-count" style={{ color: 'rgba(240,180,80,0.7)' }}>
-          Best with Portrait (9:16) format
-        </p>
-      )}
-      {isSpiral && exportFormat !== 'square' && (
-        <p className="ep-photo-count" style={{ color: 'rgba(240,180,80,0.7)' }}>
-          Spiral is designed for 1:1 square format
-        </p>
-      )}
-      {isPhotoBooth && exportFormat === 'landscape' && (
-        <p className="ep-photo-count" style={{ color: 'rgba(240,180,80,0.7)' }}>
-          Best with Square or Portrait format
-        </p>
+          {/* Format hints */}
+          {isMainStage && exportFormat !== 'portrait' && (
+            <p className="ep-photo-count" style={{ color: 'rgba(240,180,80,0.7)' }}>
+              Best with Portrait (9:16) format
+            </p>
+          )}
+          {isSpiral && exportFormat !== 'square' && (
+            <p className="ep-photo-count" style={{ color: 'rgba(240,180,80,0.7)' }}>
+              Spiral is designed for 1:1 square format
+            </p>
+          )}
+          {isPhotoBooth && exportFormat === 'landscape' && (
+            <p className="ep-photo-count" style={{ color: 'rgba(240,180,80,0.7)' }}>
+              Best with Square or Portrait format
+            </p>
+          )}
+        </>
       )}
 
       {/* Photo count */}
@@ -134,8 +140,8 @@ export default function ExportPanel({
       {/* Rounded Corners — above Composition */}
       <CornersToggle on={corner > 0} onClick={toggleCorners} />
 
-      {/* Composition — hidden for Photo Booth and Cube */}
-      {!isPhotoBooth && !isCube && (
+      {/* Composition — Export mode only, hidden for Photo Booth and Cube */}
+      {isExportMode && !isPhotoBooth && !isCube && (
         <>
           <h3 className="ep-section">Composition</h3>
           <div className="ep-panel">
@@ -166,12 +172,16 @@ export default function ExportPanel({
         </>
       )}
 
-      {/* Video Length */}
-      <h3 className="ep-section">Video Length</h3>
-      <div className="ep-panel">
-        <NumberField label="Loop" value={loopS} min={1} max={24} step={0.1} onChange={onLoopChange} unit=" s" />
-        <LoopTimeline loopS={loopS} />
-      </div>
+      {/* Video Length — Export mode only */}
+      {isExportMode && (
+        <>
+          <h3 className="ep-section">Video Length</h3>
+          <div className="ep-panel">
+            <NumberField label="Loop" value={loopS} min={1} max={24} step={0.1} onChange={onLoopChange} unit=" s" />
+            <LoopTimeline loopS={loopS} />
+          </div>
+        </>
+      )}
     </div>
   )
 }
